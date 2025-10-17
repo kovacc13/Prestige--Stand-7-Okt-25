@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Filialen-Vergleich Österreich (Müller/Douglas)</title>
+    <!-- jsPDF Bibliothek für PDF-Generierung -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
@@ -21,6 +24,11 @@
         .table-header-cell:hover {
             background-color: #e0e7ff;
         }
+        .check-mark {
+            color: #10b981; /* Emerald green */
+            font-weight: bold;
+            font-size: 1.1em;
+        }
     </style>
 </head>
 <body>
@@ -28,7 +36,7 @@
     <div class="header text-white p-6 shadow-lg rounded-b-xl">
         <div class="max-w-7xl mx-auto">
             <h1 class="text-3xl font-bold mb-1">Filialübersicht Österreich</h1>
-            <p class="text-blue-100">Kombinierte Daten aus den hochgeladenen Dateien (`Gebiet Österreich...csv` und `noition export 1.csv`).</p>
+            <p class="text-blue-100">Kombinierte Daten aus den hochgeladenen Dateien.</p>
         </div>
     </div>
 
@@ -37,12 +45,15 @@
         <!-- Download-Sektion hinzugefügt -->
         <div class="bg-indigo-50 p-6 rounded-xl shadow-md mb-6 flex flex-col md:flex-row justify-between items-center">
             <h3 class="text-lg font-semibold text-gray-700 mb-4 md:mb-0">Daten herunterladen:</h3>
-            <div class="space-y-2 md:space-y-0 md:space-x-4">
+            <div class="space-y-2 md:space-y-0 md:space-x-4 flex flex-wrap gap-2 justify-center">
                 <button onclick="downloadCSV()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg shadow transition duration-150 w-full md:w-auto">
                     Download als CSV
                 </button>
                 <button onclick="downloadXLSX()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow transition duration-150 w-full md:w-auto">
                     Download als Excel (XLS)
+                </button>
+                <button onclick="downloadPDF()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow transition duration-150 w-full md:w-auto">
+                    Download als PDF
                 </button>
             </div>
         </div>
@@ -51,7 +62,7 @@
         <div class="bg-white p-6 rounded-xl shadow-lg mb-6">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
                 <h2 class="text-2xl font-semibold text-gray-800 mb-4 sm:mb-0">Filial-Details</h2>
-                <input type="text" id="searchInput" placeholder="Filtern nach Name, Stadt oder PLZ..." class="p-3 border border-gray-300 rounded-lg w-full sm:w-80 focus:ring-blue-500 focus:border-blue-500 transition duration-150">
+                <input type="text" id="searchInput" placeholder="Filtern nach Name, Stadt, CL, minLen..." class="p-3 border border-gray-300 rounded-lg w-full sm:w-80 focus:ring-blue-500 focus:border-blue-500 transition duration-150">
             </div>
 
             <!-- Tabelle -->
@@ -65,6 +76,8 @@
                             <th id="sort-plz" class="table-header-cell px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider hover:bg-indigo-200" data-sort-key="plz">PLZ <span class="sort-icon"></span></th>
                             <th id="sort-city" class="table-header-cell px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider hover:bg-indigo-200" data-sort-key="city">Stadt <span class="sort-icon"></span></th>
                             <th id="sort-state" class="table-header-cell px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider hover:bg-indigo-200" data-sort-key="state">Bundesland <span class="sort-icon"></span></th>
+                            <th id="sort-longevity" class="table-header-cell px-2 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider hover:bg-indigo-200" data-sort-key="longevity">Langleb. (CL) <span class="sort-icon"></span></th>
+                            <th id="sort-minlen" class="table-header-cell px-2 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider hover:bg-indigo-200" data-sort-key="minlen">minLen <span class="sort-icon"></span></th>
                             <th id="sort-phone" class="table-header-cell px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider rounded-tr-lg hover:bg-indigo-200" data-sort-key="phone">Telefon <span class="sort-icon"></span></th>
                         </tr>
                     </thead>
@@ -232,7 +245,7 @@
 "Müller Hohenems,""Lustenauer Straße 123, 6845 Hohenems"",,,Vorarlberg,info@mueller.at,,6845,,,+43 59120 5730,,"
 "Müller Wien Stadion Center,""Olympiaplatz 1, 1020 Wien"",,,Wien,info@mueller.at,,1020,,,+43 59120 5607,,"
 "Douglas Wien Kärntner Straße,""Kärntner Straße 17, 1010 Wien"",,,Wien,service@douglas.at,,1010,,,+43 1 5124241,,Douglas Filiale"
-"Douglas Wien Donau Zentrum,""Wagramer Straße 81 (Top 922), 1220 Wien"",,,Wien,service@douglas.at,,1220,,,+43 1 2049600,,https://www.westfield.com/austria/donauzentrum/store/Douglas/72144"
+"Douglas Wien Donau Zentrum,""Wagramer Straße 81 (Top 922), 1220 Wien"",,,Wien,service@douglas.at,,1220,,,+43 1 2049600,,https://www.westfield.com/austria/donauzentrum/store/DOUGLAS/72144"
 "Müller Wien Donau Zentrum,""Wagramer Straße 94 (Top 54), 1220 Wien"",,,Wien,info@mueller.at,,1220,,,+43 59120 5644,,"
 "Müller Wien Favoriten,""Favoritenstraße 112–114, 1100 Wien"",,,Wien,info@mueller.at,,1100,,,+43 59120 5604,,"
 "Müller Wien Floridsdorf,""Franz-Jonas-Platz 2–3, 1210 Wien"",,,Wien,info@mueller.at,,1210,,,+43 59120 5614,,"
@@ -257,11 +270,106 @@
 "Müller Wien Galleria (Landstraße),""Landstraßer Hauptstr. 99-101, 1030 Wien"",,,Wien,info@mueller.at,,1030,,Aktiv,+43 59120 5629,,"
 "Müller Wien Mariahilfer Straße,""Mariahilfer Str. 97, 1060 Wien"",,,Wien,info@mueller.at,,1060,,Aktiv,+43 59120 1954,,"
 `;
+        
+        // Neu hinzugefügt: Daten aus der hochgeladenen PDF-Datei, manuell extrahiert.
+        // Die PDF-Daten waren in einem unstrukturierten Format, daher hier nur die relevanten Teile.
+        const file3PdfContent = [
+            // Format: [PLZ, Straße, Telefon]
+            ["1020", "Olympiaplatz 1", "+43 59120 5607"],
+            ["1030", "Landstraßer Hauptstr. 99-101", "+43 59120 5629"],
+            ["1030", "Landstraßer Hauptstraße 1B", "+43 59120 5656"],
+            ["1060", "Mariahilfer Str. 97", "+43 59120 1954"],
+            ["1100", "Favoritenstr. 112-114", "+43 59120 5604"],
+            ["1100", "Triester Straße 40", "+43 59120 5694"],
+            ["1100", "Am Hauptbahnhof 1  Top EG 138", "+43 59120 5669"],
+            ["1110", "Simmeringer Hauptstr. 96a", "+43 59120 5636"],
+            ["1110", "Landwehrstr. 6", "+43 59120 5692"],
+            ["1120", "Philadelphiabrücke  / Wilhelm Str. 66/68", "+43 59120 1962"],
+            ["1120", "Schönbrunner Str. 230", "+43 59120 5700"],
+            ["1140", "Albert-Schweitzer-Gasse 6", "+43 59120 5657"],
+            ["1150", "Europaplatz 2", "+43 59120 5643"],
+            ["1200", "Handelskai 94-96", "+43 59120 5716"],
+            ["1210", "Franz-Jonas-Platz 2-3", "+43 59120 5614"],
+            ["1210", "Ignaz-Köck-Str 1", "+43 59120 5685"],
+            ["1220", "Wagramer Str. 94 Top 54", "+43 59120 5644"],
+            ["1220", "Gewerbeparkstr. 10", "+43 59120 5610"],
+            ["1230", "Breitenfurter Straße 345-353", "+43 59120 5711"],
+            ["2201", "G3 Platz 1", "+43 59120 5652"],
+            ["2334", "Shopping City Süd / Galerie 251 / Eingang Müller", "+43 59120 5655"],
+            ["2460", "Eco-Plus-Park 4.Straße Top 15", "+43 59120 5608"],
+            ["2512", "Triester Str. 72", "+43 59120 5619"],
+            ["2620", "Schraubenwerkstr. 1", "+43 59120 5681"],
+            ["2700", "Stadionstr. 10-12", "+43 59120 5670"],
+            ["3100", "Brunngasse 3/5", "+43 59120 5667"],
+            ["3363", "Schwarzer Weg 2", "+43 59120 5712"],
+            ["3430", "Hauptplatz 12-14", "+43 59120 5707"],
+            ["3500", "Wiener Str. 96-102", "+43 59120 5708"],
+            ["4040", "Blütenstr. 13-23", "+43 59120 5704"],
+            ["4061", "Pluskaufstr. 7", "+43 59120 1963"],
+            ["4150", "Hanriederstraße 8/1", "+43 59120 5696"],
+            ["4320", "Gewerbestraße 6", "+43 59120 5688"],
+            ["4400", "Anton Plochberger Str. 2", "+43 59120 5682"],
+            ["4600", "Salzburger Str. 223", "+43 59120 5601"],
+            ["4810", "Druckereistr. 3-30", "+43 59120 5647"],
+            ["4820", "Götzstraße 8-10", "+43 59120 5728"],
+            ["4863", "Anton Bruckner Str. 1", "+43 59120 5606"],
+            ["4910", "Weberzeile 1", "+43 59120 5672"],
+            ["5020", "Südtiroler Platz 13", "+43 59120 5625"],
+            ["5020", "Alpenstr. 114-120", "+43 59120 5668"],
+            ["5301", "Möbelstrasse 12", "+43 59120 5726"],
+            ["5500", "Gasteiner Str. 46", "+43 59120 5709"],
+            ["6020", "Amraser-See-Straße 56a", "+43 59120 5721"],
+            ["6020", "Maria Theresienstr. 18", "+43 59120 1958"],
+            ["6130", "Andreas Hoferstr. 10", "+43 59120 3592"],
+            ["6176", "Cytastraße 1", "+43 59120 5698"],
+            ["6300", "Salzburger Str. 32", "+43 59120 5600"],
+            ["6460", "Industriezone 32", "+43 59120 5719"],
+            ["6600", "Mühlerstr. 11c", "+43 59120 5623"],
+            ["6840", "Am Garnmarkt 12-18", "+43 59120 5645"],
+            ["6845", "Lustenauer Str. 123", "+43 59120 5730"],
+            ["7000", "Johann-Pack-Str. 4", "+43 59120 5605"],
+            ["7111", "Richard-Erlinger-Platz 1 / Top 8", "+43 59120 5674"],
+            ["7400", "Europa Str. 1", "+43 59120 5616"],
+            ["8020", "Lazarettgürtel 55", "+43 59120 5603"],
+            ["8041", "Ostbahnstr. 3", "+43 59120 5738"],
+            ["8051", "Wiener Str. 333", "+43 59120 5678"],
+            ["8054", "Weblinger Gürtel 25", "+43 59120 5731"],
+            ["8055", "Seiersberg 1-9", "+43 59120 1961"],
+            ["8230", "Im Hatric 12", "+43 59120 5680"],
+            ["8330", "Gewerbepark 9", "+43 59120 5687"],
+            ["8430", "Leopold-Figl-Str. 1", "+43 59120 5618"],
+            ["8530", "Frauentaler Str. 70", "+43 59120 5650"],
+            ["8572", "Packer Straße 18", "+43 59120 5690"],
+            ["8605", "Gewerbestraße 20", "+43 59120 5710"],
+            ["8700", "Hauptplatz 17", "+43 59120 5654"],
+            ["8753", "Arena am Waldfeld 26", "+43 59120 5617"],
+            ["8940", "Gesäusestr. 3", "+43 59120 5621"],
+            ["9020", "Völkermarkter Straße 163", "+43 59120 5679"],
+            ["9020", "St.-Veiter-Ring 20", "+43 59120 5602"],
+            ["9100", "Umfahrungsstr. 22", "+43 59120 5676"],
+            ["9300", "Völkermarkter Str. 36", "+43 59120 5664"],
+            ["9400", "Klagenfurter Str. 41", "+43 59120 5677"],
+            ["9500", "Kärntner Str. 34", "+43 59120 5635"],
+            ["9500", "Maria-Gailer-Straße 57 / Top 02", "+43 59120 5683"],
+            ["9560", "Kindergartenstr. 1", "+43 59120 5703"],
+            ["9800", "Villacher Straße 103", "+43 59120 5684"],
+            // Douglas Filialen aus PDF (manuell extrahiert)
+            ["1010", "Kärntner Straße 17", "+43 1 5124241"], // Douglas
+            ["1220", "Wagramer Straße 81", "+43 1 2049600"], // Douglas Donau Zentrum
+            ["2334", "SCS Allee 124", "+43 1 6991372"],     // Douglas Vösendorf SCS
+            ["4061", "Pluskaufstraße 7", "+43 7229 70880"], // Douglas Pasching PlusCity
+            ["8055", "Seiersberg 5", "+43 316 296925"]      // Douglas Seiersberg
+        ];
+
 
         let storeData = [];
         let currentTableData = []; // Hält die aktuell gefilterten/sortierten Daten
         let sortColumn = 'city';
         let sortDirection = 'asc';
+        
+        // window.jsPDF ist global verfügbar dank des CDN-imports
+        const { jsPDF } = window.jspdf;
+
 
         /**
          * Einfaches CSV-Parsing (nimmt an, dass kein Komma in der Zelle ist, außer bei File2 in der Adresse)
@@ -285,16 +393,12 @@
                     let cleanLine = line.replace(/""/g, '"'); 
                     
                     // Regex, um die Felder zu extrahieren.
-                    // Sucht nach: Anführungszeichen (optional), dann den Inhalt, dann Anführungszeichen (optional), gefolgt von einem Komma (optional)
                     const regex = /(?:^|,)(\"(?:[^\"]|\"\")*\"|[^,]*)/g;
                     let match;
                     const row = [];
 
-                    // Starte die Suche ab dem 0. Index der Zeile
                     let currentPosition = 0;
                     while ((match = regex.exec(cleanLine)) !== null) {
-                        // Der erste match (Index 0) ist das gesamte gematchte Substring (inkl. Komma davor)
-                        // Der zweite match (Index 1) ist die Gruppe, die den Zelleninhalt enthält
                         let cell = match[1];
 
                         // Entferne die äußeren Anführungszeichen, falls vorhanden
@@ -302,14 +406,11 @@
                             cell = cell.substring(1, cell.length - 1);
                         }
                         
-                        // Das erste Feld hat kein führendes Komma, das ignoriert werden muss
                         if (match.index > 0 || row.length === 0) {
-                             // Füge die bereinigte Zelle hinzu und ersetze doppelte Anführungszeichen wieder mit einfachen
                             row.push(cell.replace(/\\"/g, '"').trim()); 
                         }
                         currentPosition = match.index + match[0].length;
                         
-                        // Break, wenn das Ende der Zeile erreicht ist (um endlose Schleifen zu vermeiden)
                         if (match.index === regex.lastIndex) {
                             regex.lastIndex++;
                         }
@@ -321,11 +422,9 @@
                 }
             } else {
                 // Einfacher Parser für Komma-Trennung ohne Anführungszeichen (file1)
-                const header = lines[0].split(delimiter);
                 for (let i = 1; i < lines.length; i++) {
                     const line = lines[i].trim();
                     if (line) {
-                        // Da file1 keine Kommas in den Feldern hat, können wir es einfach splitten
                         data.push(line.split(delimiter).map(cell => cell.trim()));
                     }
                 }
@@ -335,12 +434,39 @@
 
 
         /**
+         * Normalisiert einen Straßennamen/Adresse für den Abgleich (entfernt Leerzeichen, macht Kleinbuchstaben, entfernt Top-Nummern und Schrägstriche).
+         * @param {string} street - Der Straßenname.
+         * @param {string} plz - Die PLZ.
+         * @returns {string} Der normalisierte Schlüssel.
+         */
+        function normalizeKey(plz, street) {
+            if (!plz || !street) return 'N/A';
+            let key = (plz + street).toLowerCase().replace(/\s/g, '').replace('top', '').replace(/\//g, '').replace('shop', '').replace('eingang', '').replace('galerie', '');
+            
+            // Zusätzliche Normalisierungen für bekannte Abweichungen:
+            key = key.replace('str.', 'strasse').replace('str', 'strasse');
+            key = key.replace('hauptstr', 'hauptstrasse');
+            key = key.replace('philadelphiabrücke', '').replace('wilhelmstrasse6668', '');
+            return key;
+        }
+
+        /**
          * Verarbeitet die rohen Daten zu einem standardisierten Array von Filialobjekten.
          * @returns {Array<Object>} Das Array der Filialobjekte.
          */
         function processData() {
             const data1 = parseCSV(file1Content, ',');
-            const data2 = parseCSV(file2Content, ','); // Behandelt intern die Anführungszeichen
+            const data2 = parseCSV(file2Content, ',');
+            
+            // Konvertiere PDF-Telefondaten in eine Map für schnellen Zugriff
+            const phoneDataFromPDF = new Map();
+            file3PdfContent.forEach(([plz, street, phone]) => {
+                const key = normalizeKey(plz, street);
+                if (key !== 'N/A') {
+                    phoneDataFromPDF.set(key, phone);
+                }
+            });
+
 
             const stores = new Map(); // Key: PLZ + Straße (zur eindeutigen Identifizierung)
 
@@ -353,13 +479,15 @@
                 let street = row[6] || 'N/A';
                 const plz = row[7] || 'N/A';
                 const city = row[8] || 'N/A';
+                const longevity = row[10] || '';
+                const minlen = row[11] || '';
                 
                 let storeName = '';
                 let type = '';
                 
                 if (accountName.includes('Douglas')) {
                     type = 'Douglas';
-                    // Douglas Filialname aus Name 2 + Name 3 + Stadt zusammenbauen
+                    // Namensbereinigung
                     storeName = (name2.replace(/VST \d+ AT/g, '').trim() || name3.trim() || city) + (name3 ? ' (' + name3 + ')' : '');
                     storeName = storeName.replace(/Donauzentrum, OG Top 922/, 'Donauzentrum').trim();
                     storeName = 'Douglas ' + storeName.replace(/Douglas/, '').trim();
@@ -368,129 +496,89 @@
                     storeName = 'Müller ' + (name3.trim() || name2.replace(/Filiale \d+/g, '').trim() || city);
                 }
 
-                // Normalisiere die Straße für den Schlüssel (entferne Leerzeichen und mache Kleinbuchstaben)
-                const key = (plz + street).toLowerCase().replace(/\s/g, '');
+                const key = normalizeKey(plz, street);
 
-                if (key.includes('n/a')) return; // Ungültige Adresse überspringen
+                if (key.includes('n/a')) return;
+
+                // 1.1. Telefonnummer aus PDF-Liste suchen (Priorität 1)
+                const phoneFromPDF = phoneDataFromPDF.get(key) || '';
 
                 stores.set(key, {
                     type: type,
-                    name: storeName.replace(/\s+/g, ' ').trim(), // Reduziere mehrfache Leerzeichen
+                    name: storeName.replace(/\s+/g, ' ').trim(),
                     street: street.replace(/\s+/g, ' ').trim(),
                     plz: plz,
                     city: city,
-                    state: '', // Wird später aus Datei 2 ergänzt
-                    phone: '', // Wird später aus Datei 2 ergänzt
+                    state: '', 
+                    phone: phoneFromPDF, // Priorität 1: PDF-Daten
+                    longevity: longevity,
+                    minlen: minlen,      
                     fullAddress: `${street}, ${plz} ${city}`,
                 });
             });
 
 
-            // 2. Daten aus Datei 2 (Telefonnummern, Bundesland) ergänzen
+            // 2. Daten aus Datei 2 (Bundesland, Telefon als Fallback) ergänzen
             data2.forEach(row => {
                 // Spaltenindizes für Datei 2 (Notion Export)
-                const name2 = row[0] || ''; // Name
-                const addressFull = row[1] || ''; // Adresse
-                const state = row[4] || ''; // Bundesland
-                const plz = row[7] || ''; // PLZ
-                const phone = row[10] || ''; // Telefon
+                const name2 = row[0] || ''; 
+                const addressFull = row[1] || '';
+                const state = row[4] || ''; 
+                const plz = row[7] || ''; 
+                const phone = row[10] || ''; // Telefon aus CSV 2
+                
+                if (!plz) return; 
 
-                if (!plz) return; // Überspringe Zeilen ohne PLZ
-
-                // Adresse für Schlüssel normalisieren:
-                // Nur den Straßenteil extrahieren (alles vor dem PLZ-Teil)
                 let street = '';
-                const addressMatch = addressFull.match(/\"([^\,]*), \s*\d{4}\s*([^\"]*)\"/); // Sucht nach "Straße, PLZ Ort"
+                const addressMatch = addressFull.match(/\"([^\,]*), \s*\d{4}\s*([^\"]*)\"/); 
                 if (addressMatch && addressMatch[1]) {
                     street = addressMatch[1].trim();
                 }
                 
-                // Für Douglas: Adresse ist im Format "SCS Allee 124, 2334 Vösendorf"
-                // Für Müller: Adresse ist im Format "Kindergartenstraße 1, 9560 Feldkirchen"
-
-                // Alternative zur Regex, um die Straße zu finden
-                if (street.includes('Gewerbeparkstraße')) {
-                    street = 'Gewerbeparkstr. 10'; // Korrektur für Wien Stadlau
-                } else if (street.includes('Shopping City Süd – Galerie 251/Eing. Müller')) {
-                    street = 'Shopping City Süd / Galerie 251 / Eingang Müller'; // Korrektur für Vösendorf
-                } else if (street.includes('Shopping City Seiersberg 5/2/6')) {
-                    street = 'SCS Allee 124'; // Douglas Seiersberg (Verwendung der Douglas-Adresse aus Datei 1)
-                } else if (street.includes('Shopping City Seiersberg 1–9')) {
-                    street = 'Seiersberg 1-9'; // Müller Seiersberg (Verwendung der Müller-Adresse aus Datei 1)
-                } else if (street.includes('Wilhelmstraße 66/68')) {
-                    street = 'Philadelphiabrücke  / Wilhelm Str. 66/68'; // Müller Wien Meidling (Verwendung der Müller-Adresse aus Datei 1)
-                } else if (street.includes('Am Hauptbahnhof 1 (EG 138)')) {
-                    street = 'Am Hauptbahnhof 1  Top EG 138'; // Müller Wien Hauptbahnhof (Verwendung der Müller-Adresse aus Datei 1)
-                } else if (street.includes('Wagramer Straße 81 (Top 922)')) {
-                    street = 'Wagramer Straße 81'; // Douglas Donau Zentrum (Verwendung der Douglas-Adresse aus Datei 1)
-                } else if (street.includes('Richard-Erlinger-Platz 1 / Top 8')) {
-                    street = 'Richard-Erlinger-Platz 1 / Top 8'; // Parndorf (stimmt in beiden überein)
-                } else if (street.includes('SCS Allee 124')) {
-                    street = 'SCS Allee 124'; // Douglas Vösendorf (stimmt in beiden überein)
-                }
+                // Manuelle Schlüsselkorrekturen zur Adressnormalisierung (wie in der vorherigen Version)
+                if (street.includes('Shopping City Süd – Galerie 251/Eing. Müller')) { street = 'Shopping City Süd / Galerie 251 / Eingang Müller'; }
+                else if (street.includes('Shopping City Seiersberg 1–9')) { street = 'Seiersberg 1-9'; }
+                else if (street.includes('Wilhelmstraße 66/68')) { street = 'Philadelphiabrücke  / Wilhelm Str. 66/68'; }
+                else if (street.includes('Am Hauptbahnhof 1 (EG 138)')) { street = 'Am Hauptbahnhof 1  Top EG 138'; }
+                else if (street.includes('Wagramer Straße 81 (Top 922)')) { street = 'Wagramer Straße 81'; }
+                else if (street.includes('SCS Allee 124')) { street = 'SCS Allee 124'; }
                 
-                // Normalisiere Straße von Datei 2 (nur erste Zeile bis Komma oder Klammer)
                 let cleanedStreet2 = street.split(',')[0].split('(')[0].trim();
                 
-                // Entferne Top-Nummern oder Zusätze, um den Schlüssel zu treffen
+                // Zusätzliche Normalisierungen
                 if (cleanedStreet2.includes('Wagramer Straße')) { cleanedStreet2 = 'Wagramer Str. 94'; }
-                if (cleanedStreet2.includes('Landstraßer Hauptstr.')) { cleanedStreet2 = 'Landstraßer Hauptstr. 99-101'; }
-                if (cleanedStreet2.includes('Landstraßer Hauptstraße')) { cleanedStreet2 = 'Landstraßer Hauptstraße 1B'; }
-                if (cleanedStreet2.includes('Mariahilfer Straße')) { cleanedStreet2 = 'Mariahilfer Str. 97'; }
-                if (cleanedStreet2.includes('Triester Straße 40')) { cleanedStreet2 = 'Triester Straße 40'; }
-                if (cleanedStreet2.includes('Simmeringer Hauptstraße')) { cleanedStreet2 = 'Simmeringer Hauptstr. 96a'; }
-                if (cleanedStreet2.includes('Landwehrstraße')) { cleanedStreet2 = 'Landwehrstr. 6'; }
-                if (cleanedStreet2.includes('Europaplatz')) { cleanedStreet2 = 'Europaplatz 2'; }
-                if (cleanedStreet2.includes('Handelskai')) { cleanedStreet2 = 'Handelskai 94-96'; }
-                if (cleanedStreet2.includes('Franz-Jonas-Platz')) { cleanedStreet2 = 'Franz-Jonas-Platz 2-3'; }
-                if (cleanedStreet2.includes('Ignaz-Köck-Straße')) { cleanedStreet2 = 'Ignaz-Köck-Str 1'; }
-                if (cleanedStreet2.includes('Gewerbeparkstraße 10')) { cleanedStreet2 = 'Gewerbeparkstr. 10'; }
-                if (cleanedStreet2.includes('Breitenfurter Straße')) { cleanedStreet2 = 'Breitenfurter Straße 345-353'; }
-                if (cleanedStreet2.includes('G3 Platz')) { cleanedStreet2 = 'G3 Platz 1'; }
-                if (cleanedStreet2.includes('Eco-Plus-Park')) { cleanedStreet2 = 'Eco-Plus-Park 4.Straße Top 15'; }
-                if (cleanedStreet2.includes('Brunngasse')) { cleanedStreet2 = 'Brunngasse 3/5'; }
-                if (cleanedStreet2.includes('Schwarzer Weg')) { cleanedStreet2 = 'Schwarzer Weg 2'; }
-                if (cleanedStreet2.includes('Hauptplatz')) { cleanedStreet2 = 'Hauptplatz 12-14'; }
-                if (cleanedStreet2.includes('Wiener Str. 96-102')) { cleanedStreet2 = 'Wiener Str. 96-102'; }
+                else if (cleanedStreet2.includes('Landstraßer Hauptstr.')) { cleanedStreet2 = 'Landstraßer Hauptstr. 99-101'; }
+                else if (cleanedStreet2.includes('Landstraßer Hauptstraße')) { cleanedStreet2 = 'Landstraßer Hauptstraße 1B'; }
+                else if (cleanedStreet2.includes('Mariahilfer Straße')) { cleanedStreet2 = 'Mariahilfer Str. 97'; }
+                else if (cleanedStreet2.includes('Triester Straße 40')) { cleanedStreet2 = 'Triester Straße 40'; }
+                else if (cleanedStreet2.includes('Simmeringer Hauptstraße')) { cleanedStreet2 = 'Simmeringer Hauptstr. 96a'; }
+                else if (cleanedStreet2.includes('Landwehrstraße')) { cleanedStreet2 = 'Landwehrstr. 6'; }
+                else if (cleanedStreet2.includes('Europaplatz')) { cleanedStreet2 = 'Europaplatz 2'; }
+                else if (cleanedStreet2.includes('Handelskai')) { cleanedStreet2 = 'Handelskai 94-96'; }
+                else if (cleanedStreet2.includes('Franz-Jonas-Platz')) { cleanedStreet2 = 'Franz-Jonas-Platz 2-3'; }
+                else if (cleanedStreet2.includes('Ignaz-Köck-Straße')) { cleanedStreet2 = 'Ignaz-Köck-Str 1'; }
+                else if (cleanedStreet2.includes('Gewerbeparkstraße 10')) { cleanedStreet2 = 'Gewerbeparkstr. 10'; }
+                else if (cleanedStreet2.includes('Breitenfurter Straße')) { cleanedStreet2 = 'Breitenfurter Straße 345-353'; }
+                else if (cleanedStreet2.includes('G3 Platz')) { cleanedStreet2 = 'G3 Platz 1'; }
+                else if (cleanedStreet2.includes('Eco-Plus-Park')) { cleanedStreet2 = 'Eco-Plus-Park 4.Straße Top 15'; }
+                else if (cleanedStreet2.includes('Brunngasse')) { cleanedStreet2 = 'Brunngasse 3/5'; }
+                else if (cleanedStreet2.includes('Schwarzer Weg')) { cleanedStreet2 = 'Schwarzer Weg 2'; }
+                else if (cleanedStreet2.includes('Hauptplatz')) { cleanedStreet2 = 'Hauptplatz 12-14'; }
+                else if (cleanedStreet2.includes('Wiener Str. 96-102')) { cleanedStreet2 = 'Wiener Str. 96-102'; }
+                else if (cleanedStreet2.includes('Schraubenwerkstraße 1')) { cleanedStreet2 = 'Schraubenwerkstr. 1'; }
+                else if (cleanedStreet2.includes('Stadionstraße 10–12')) { cleanedStreet2 = 'Stadionstr. 10-12'; }
 
-                const key = (plz + cleanedStreet2).toLowerCase().replace(/\s/g, '').replace('top922', '').replace('top54', '').replace('top138', '').replace('top02', '').replace(/\//g, '');
+
+                const key = normalizeKey(plz, cleanedStreet2);
                 
-                // Versuche, den Schlüssel zu finden und die Daten zu aktualisieren
-                let foundMatch = false;
-                
-                // Iteriere über alle vorhandenen Schlüssel und suche nach Übereinstimmung
                 for (let [existingKey, store] of stores.entries()) {
-                    // Normalisiere den existierenden Straßennamen von Datei 1
-                    let normalizedStoreStreet = store.street.toLowerCase().replace(/\s/g, '').replace('top', '').replace(/\//g, '');
-                    
-                    // Normalisiere den Straßennamen von Datei 2
-                    let normalizedCleanedStreet2 = cleanedStreet2.toLowerCase().replace(/\s/g, '').replace('top', '').replace(/\//g, '');
-
-                    // Bilde einen normalisierten Schlüssel für den Vergleich
-                    const normalizedKeyStore = (store.plz + normalizedStoreStreet);
-                    const normalizedKey2 = (plz + normalizedCleanedStreet2);
-
-                    // Spezielle Adresskorrekturen für den Match
-                    if (store.plz === '2334' && normalizedKey2.includes('scsallee')) {
-                        // Douglas Vösendorf
-                        normalizedKeyStore.replace('shoppingcitysüd/galerie251/eingangmüller', 'scsallee124');
-                    }
-                    if (store.plz === '8055' && normalizedKey2.includes('shoppingcityseiersberg')) {
-                        // Douglas Seiersberg
-                        normalizedKeyStore.replace('seiersberg1-9', 'seiersberg5');
-                    }
-
-
-                    if (normalizedKeyStore.includes(normalizedKey2) || normalizedKey2.includes(normalizedKeyStore) || (store.plz === plz && store.city.toLowerCase().includes(state.toLowerCase()) && store.type === name2.split(' ')[0])) {
+                    // Verwende den normalisierten Schlüssel, um den Store zu finden
+                    if (existingKey === key) {
                         store.state = state || store.state;
-                        store.phone = phone || store.phone;
+                        // Priorität 2: CSV 2 Telefonnummer, WENN noch keine Telefonnummer vorhanden
+                        store.phone = store.phone || phone; 
                         store.name = name2.split('"')[0].trim() || store.name;
-                        // Manchmal ist die Adresse in File 2 besser/vollständiger
-                        if (addressMatch) {
-                            store.street = cleanedStreet2 || store.street;
-                        }
-
-                        // Speziell für die Douglas-Filialen, die nur in File 1 einen unklaren Namen hatten
+                        
                         if (store.type === 'Douglas') {
                             store.name = name2.split('"')[0].trim() || store.name;
                             if (store.name.includes('(Top 922)')) {
@@ -498,26 +586,14 @@
                             }
                         }
                         
-                        foundMatch = true;
                         break;
-                    }
-                }
-                
-                // Falls kein Match gefunden wurde und es sich um eine Müller-Filiale handelt
-                if (!foundMatch && name2.includes('Müller') && !stores.has(key)) {
-                    // Spezielle Behandlung für die Burgesland-Filialen, die in File 1 unvollständig waren
-                    if (plz === '7000' || plz === '7400' || plz === '7111') {
-                        // Adresse in File 1 war: Johann-Pack-Str. 4 (Eisenstadt), Europa Str. 1 (Oberwart), Richard-Erlinger-Platz 1 / Top 8 (Parndorf)
-                        // Diese sind bereits in File 1, aber dort fehlten Ländercode/Markierungen.
-                        // Hier werden sie nicht hinzugefügt, da sie in File 1 bereits enthalten sind (wenn auch mit kleinen Mängeln, die in der App ignoriert werden).
                     }
                 }
             });
 
-            // 3. Finales Array erstellen und sortieren
+            // 3. Finales Array erstellen, Bundesland-Lücken füllen und Namen bereinigen
             let finalData = Array.from(stores.values());
             
-            // Ergänze Bundesland-Informationen, die in Datei 1, aber nicht in Datei 2 waren (manuelle Zuordnung)
             const cityStateMap = {
                 'Wien': 'Wien', 'Gerasdorf bei Wien': 'Niederösterreich', 'Vösendorf': 'Niederösterreich', 
                 'Bruck/Leitha': 'Niederösterreich', 'Oeynhausen': 'Niederösterreich', 'Neunkirchen': 'Niederösterreich', 
@@ -542,20 +618,17 @@
                 if (!store.state) {
                     store.state = cityStateMap[store.city] || 'N/A';
                 }
-                // Bereinigung für den Namen (Filiale-Nummern entfernen, wenn sie nicht der Name sind)
+                // Bereinigung für den Namen
                 if (store.name.startsWith('Müller Filiale')) {
                     store.name = 'Müller ' + store.name.split(',')[0].replace('Filiale', '').trim();
                 }
                 store.name = store.name.replace(/MHA Reinhard Müller HandelsgmbH/, 'Müller');
                 store.name = store.name.replace(/Müller GmbH & Co. KG/, 'Müller');
                 store.name = store.name.replace(/Müller Ltd. & Co. KG/, 'Müller');
-                store.name = store.name.replace(/Müller Douglas/, 'Douglas'); // Korrektur, falls Douglas in Müller-Daten enthalten ist
                 store.name = store.name.replace(/Wien Mitte, Landstraßer Hauptstraße 1B/, 'Wien Mitte');
                 
             });
 
-            // Spezielle Hinzufügung der Douglas-Filialen, da sie in File 2 eine eigene Zeile haben
-            // Die Douglas-Filialen wurden in Schritt 1 bereits hinzugefügt, in Schritt 2 aktualisiert.
 
             return finalData;
         }
@@ -637,6 +710,9 @@
                 
                 const typeClass = store.type === 'Douglas' ? 'text-pink-600 font-semibold' : 'text-blue-600 font-medium';
                 
+                // Funktion zur Anzeige von X als Häkchen
+                const renderCheck = (value) => value.toLowerCase() === 'x' ? '<span class="check-mark">✔</span>' : '-';
+
                 row.innerHTML = `
                     <td class="px-4 py-3 whitespace-nowrap text-sm ${typeClass}">${store.type}</td>
                     <td class="px-4 py-3 text-sm text-gray-900">${store.name}</td>
@@ -644,6 +720,8 @@
                     <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${store.plz}</td>
                     <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${store.city}</td>
                     <td class="px-4 py-3 text-sm text-gray-700">${store.state || 'Unbekannt'}</td>
+                    <td class="px-2 py-3 text-center whitespace-nowrap text-sm text-gray-700">${renderCheck(store.longevity)}</td>
+                    <td class="px-2 py-3 text-center whitespace-nowrap text-sm text-gray-700">${renderCheck(store.minlen)}</td>
                     <td class="px-4 py-3 whitespace-nowrap text-sm font-mono text-green-600">${store.phone || '-'}</td>
                 `;
                 tableBody.appendChild(row);
@@ -657,28 +735,28 @@
          */
         function downloadCSV() {
             if (currentTableData.length === 0) {
-                alert("Keine Daten zum Herunterladen vorhanden.");
+                console.error("Keine Daten zum Herunterladen vorhanden.");
                 return;
             }
 
-            const headers = ['Typ', 'Filialname', 'Straße', 'PLZ', 'Stadt', 'Bundesland', 'Telefon'];
+            const headers = ['Typ', 'Filialname', 'Straße', 'PLZ', 'Stadt', 'Bundesland', 'Cell Longevity', 'minLen', 'Telefon'];
             let csv = headers.join(';') + '\n';
 
             currentTableData.forEach(store => {
                 const row = [
                     store.type,
-                    store.name.replace(/"/g, '""'), // Escape double quotes
+                    store.name.replace(/"/g, '""'), 
                     store.street.replace(/"/g, '""'),
                     store.plz,
                     store.city,
                     store.state,
+                    store.longevity, 
+                    store.minlen,    
                     store.phone
                 ];
-                // CSV-Formatierung (Zellen mit Semikolon trennen und Anführungszeichen setzen, falls Kommas enthalten wären)
                 csv += row.map(cell => `"${cell}"`).join(';') + '\n';
             });
 
-            // Fügt das BOM (Byte Order Mark) hinzu, um die korrekte Anzeige von Umlauten in Excel zu gewährleisten
             const BOM = '\uFEFF';
             const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
@@ -690,17 +768,16 @@
 
         /**
          * Erstellt und lädt die aktuellen Tabellendaten als Excel-kompatible XLSX-Datei herunter.
-         * Hinweis: Dies ist ein einfacher HTML-Hack, der die Daten als Tabelle in eine .xls-Datei speichert.
          */
         function downloadXLSX() {
             if (currentTableData.length === 0) {
-                alert("Keine Daten zum Herunterladen vorhanden.");
+                console.error("Keine Daten zum Herunterladen vorhanden.");
                 return;
             }
 
-            const headers = ['Typ', 'Filialname', 'Straße', 'PLZ', 'Stadt', 'Bundesland', 'Telefon'];
+            const headers = ['Typ', 'Filialname', 'Straße', 'PLZ', 'Stadt', 'Bundesland', 'Cell Longevity', 'minLen', 'Telefon'];
             
-            let content = '<html><head><meta charset="UTF-8"><style>td{mso-number-format:"\@";}</style></head><body><table>';
+            let content = '<html><head><meta charset="UTF-8"><style>td{mso-number-format:"\\@";}</style></head><body><table>';
             
             // Header-Zeile
             content += '<tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>';
@@ -714,6 +791,8 @@
                     store.plz,
                     store.city,
                     store.state,
+                    store.longevity, 
+                    store.minlen,    
                     store.phone
                 ];
                 content += '<tr>' + row.map(cell => `<td>${cell}</td>`).join('') + '</tr>';
@@ -727,6 +806,76 @@
             link.download = 'Filialen_Oesterreich_Excel.xls';
             link.click();
             URL.revokeObjectURL(link.href);
+        }
+
+        /**
+         * Erstellt und lädt die aktuellen Tabellendaten als PDF-Datei herunter (mit jsPDF).
+         */
+        function downloadPDF() {
+            // Sicherstellen, dass die Bibliotheken geladen sind
+            if (typeof jsPDF === 'undefined' || typeof jsPDF.autoTable === 'undefined') {
+                console.error("jsPDF oder autoTable Plugin nicht geladen. Bitte prüfen Sie die CDN-Links.");
+                return;
+            }
+            
+            if (currentTableData.length === 0) {
+                console.error("Keine Daten zum Herunterladen vorhanden.");
+                return;
+            }
+            
+            const doc = new jsPDF('l', 'mm', 'a4'); // 'l' für Landscape (Querformat), 'mm', 'a4'
+
+            // Header-Namen
+            const head = [['Typ', 'Filialname', 'Straße', 'PLZ', 'Stadt', 'Bundesland', 'Langleb. (CL)', 'minLen', 'Telefon']];
+
+            // Daten-Body
+            const body = currentTableData.map(store => [
+                String(store.type),
+                String(store.name),
+                String(store.street),
+                String(store.plz),
+                String(store.city),
+                String(store.state || 'Unbekannt'),
+                String(store.longevity || '-'), 
+                String(store.minlen || '-'),    
+                String(store.phone || '-')
+            ]);
+
+            // PDF-Titel
+            doc.setFontSize(14);
+            doc.text('Filialübersicht Österreich (Müller/Douglas)', 14, 15);
+            
+            // Tabelle erstellen
+            doc.autoTable({
+                startY: 20,
+                head: head,
+                body: body,
+                theme: 'striped',
+                headStyles: { fillColor: [59, 130, 246] }, // Tailwind blue-500
+                styles: { 
+                    font: 'helvetica', 
+                    cellPadding: 1.5,
+                    fontSize: 7.5 // Kleinere Schrift, um die neuen Spalten unterzubringen
+                },
+                columnStyles: {
+                    0: { cellWidth: 15 }, // Typ
+                    1: { cellWidth: 35 }, // Filialname
+                    2: { cellWidth: 60 }, // Straße
+                    3: { cellWidth: 15 }, // PLZ
+                    4: { cellWidth: 35 }, // Stadt
+                    5: { cellWidth: 30 }, // Bundesland
+                    6: { cellWidth: 20, halign: 'center' }, // CL (Neu)
+                    7: { cellWidth: 15, halign: 'center' }, // minLen (Neu)
+                    8: { cellWidth: 25 }, // Telefon
+                },
+                didDrawPage: function(data) {
+                    // Seitenzahlen hinzufügen
+                    doc.setFontSize(8)
+                    doc.text('Seite ' + doc.internal.getNumberOfPages(), 280, 205, { align: 'right' });
+                }
+            });
+
+            doc.save('Filialen_Oesterreich_PDF.pdf');
         }
 
     </script>
