@@ -62,7 +62,7 @@
         <div class="bg-white p-6 rounded-xl shadow-lg mb-6">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
                 <h2 class="text-2xl font-semibold text-gray-800 mb-4 sm:mb-0">Filial-Details</h2>
-                <input type="text" id="searchInput" placeholder="Filtern nach Name, Stadt, CL, minLen..." class="p-3 border border-gray-300 rounded-lg w-full sm:w-80 focus:ring-blue-500 focus:border-blue-500 transition duration-150">
+                <input type="text" id="searchInput" placeholder="Filtern nach Name, ID, Stadt, CL, minLen..." class="p-3 border border-gray-300 rounded-lg w-full sm:w-80 focus:ring-blue-500 focus:border-blue-500 transition duration-150">
             </div>
 
             <!-- Tabelle -->
@@ -71,6 +71,7 @@
                     <thead class="bg-indigo-100">
                         <tr>
                             <th id="sort-type" class="table-header-cell px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider rounded-tl-lg hover:bg-indigo-200" data-sort-key="type">Typ <span class="sort-icon"></span></th>
+                            <th id="sort-internalId" class="table-header-cell px-2 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider hover:bg-indigo-200" data-sort-key="internalId">Filial-ID (Name 2) <span class="sort-icon"></span></th>
                             <th id="sort-name" class="table-header-cell px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider hover:bg-indigo-200" data-sort-key="name">Filialname <span class="sort-icon"></span></th>
                             <th id="sort-street" class="table-header-cell px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider hover:bg-indigo-200" data-sort-key="street">Straße <span class="sort-icon"></span></th>
                             <th id="sort-plz" class="table-header-cell px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider hover:bg-indigo-200" data-sort-key="plz">PLZ <span class="sort-icon"></span></th>
@@ -474,8 +475,8 @@
             data1.forEach(row => {
                 // Spaltenindizes für Datei 1
                 const accountName = row[3] || 'N/A';
+                const internalId = row[4] || ''; // Neu: Name 2 (z.B. Filiale 5607 oder VST 5 AT)
                 const name3 = row[5] || '';
-                const name2 = row[4] || '';
                 let street = row[6] || 'N/A';
                 const plz = row[7] || 'N/A';
                 const city = row[8] || 'N/A';
@@ -488,12 +489,14 @@
                 if (accountName.includes('Douglas')) {
                     type = 'Douglas';
                     // Namensbereinigung
-                    storeName = (name2.replace(/VST \d+ AT/g, '').trim() || name3.trim() || city) + (name3 ? ' (' + name3 + ')' : '');
-                    storeName = storeName.replace(/Donauzentrum, OG Top 922/, 'Donauzentrum').trim();
+                    storeName = (name3.trim() || city);
+                    if (storeName.includes('Donauzentrum, OG Top 922')) {
+                        storeName = 'Donauzentrum';
+                    }
                     storeName = 'Douglas ' + storeName.replace(/Douglas/, '').trim();
                 } else {
                     type = 'Müller';
-                    storeName = 'Müller ' + (name3.trim() || name2.replace(/Filiale \d+/g, '').trim() || city);
+                    storeName = 'Müller ' + (name3.trim() || city);
                 }
 
                 const key = normalizeKey(plz, street);
@@ -505,6 +508,7 @@
 
                 stores.set(key, {
                     type: type,
+                    internalId: internalId.replace(/\s+/g, ' ').trim(), // Neu
                     name: storeName.replace(/\s+/g, ' ').trim(),
                     street: street.replace(/\s+/g, ' ').trim(),
                     plz: plz,
@@ -678,6 +682,7 @@
         function filterTable() {
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
             const filteredData = storeData.filter(store => {
+                // Füge internalId zur Suchlogik hinzu
                 return Object.values(store).some(value => 
                     String(value).toLowerCase().includes(searchTerm)
                 );
@@ -715,6 +720,7 @@
 
                 row.innerHTML = `
                     <td class="px-4 py-3 whitespace-nowrap text-sm ${typeClass}">${store.type}</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-xs text-gray-700">${store.internalId}</td> <!-- Neu -->
                     <td class="px-4 py-3 text-sm text-gray-900">${store.name}</td>
                     <td class="px-4 py-3 text-sm text-gray-500">${store.street}</td>
                     <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${store.plz}</td>
@@ -739,12 +745,13 @@
                 return;
             }
 
-            const headers = ['Typ', 'Filialname', 'Straße', 'PLZ', 'Stadt', 'Bundesland', 'Cell Longevity', 'minLen', 'Telefon'];
+            const headers = ['Typ', 'Filial-ID (Name 2)', 'Filialname', 'Straße', 'PLZ', 'Stadt', 'Bundesland', 'Cell Longevity', 'minLen', 'Telefon'];
             let csv = headers.join(';') + '\n';
 
             currentTableData.forEach(store => {
                 const row = [
                     store.type,
+                    store.internalId, // Neu
                     store.name.replace(/"/g, '""'), 
                     store.street.replace(/"/g, '""'),
                     store.plz,
@@ -775,7 +782,7 @@
                 return;
             }
 
-            const headers = ['Typ', 'Filialname', 'Straße', 'PLZ', 'Stadt', 'Bundesland', 'Cell Longevity', 'minLen', 'Telefon'];
+            const headers = ['Typ', 'Filial-ID (Name 2)', 'Filialname', 'Straße', 'PLZ', 'Stadt', 'Bundesland', 'Cell Longevity', 'minLen', 'Telefon'];
             
             let content = '<html><head><meta charset="UTF-8"><style>td{mso-number-format:"\\@";}</style></head><body><table>';
             
@@ -786,6 +793,7 @@
             currentTableData.forEach(store => {
                 const row = [
                     store.type,
+                    store.internalId, // Neu
                     store.name,
                     store.street,
                     store.plz,
@@ -826,11 +834,12 @@
             const doc = new jsPDF('l', 'mm', 'a4'); // 'l' für Landscape (Querformat), 'mm', 'a4'
 
             // Header-Namen
-            const head = [['Typ', 'Filialname', 'Straße', 'PLZ', 'Stadt', 'Bundesland', 'Langleb. (CL)', 'minLen', 'Telefon']];
+            const head = [['Typ', 'ID', 'Filialname', 'Straße', 'PLZ', 'Stadt', 'Bundesland', 'Langleb. (CL)', 'minLen', 'Telefon']];
 
             // Daten-Body
             const body = currentTableData.map(store => [
                 String(store.type),
+                String(store.internalId), // Neu
                 String(store.name),
                 String(store.street),
                 String(store.plz),
@@ -858,15 +867,16 @@
                     fontSize: 7.5 // Kleinere Schrift, um die neuen Spalten unterzubringen
                 },
                 columnStyles: {
-                    0: { cellWidth: 15 }, // Typ
-                    1: { cellWidth: 35 }, // Filialname
-                    2: { cellWidth: 60 }, // Straße
-                    3: { cellWidth: 15 }, // PLZ
-                    4: { cellWidth: 35 }, // Stadt
-                    5: { cellWidth: 30 }, // Bundesland
-                    6: { cellWidth: 20, halign: 'center' }, // CL (Neu)
-                    7: { cellWidth: 15, halign: 'center' }, // minLen (Neu)
-                    8: { cellWidth: 25 }, // Telefon
+                    0: { cellWidth: 10 },  // Typ
+                    1: { cellWidth: 20 },  // ID (Neu)
+                    2: { cellWidth: 35 },  // Filialname
+                    3: { cellWidth: 55 },  // Straße
+                    4: { cellWidth: 15 },  // PLZ
+                    5: { cellWidth: 35 },  // Stadt
+                    6: { cellWidth: 30 },  // Bundesland
+                    7: { cellWidth: 20, halign: 'center' }, // CL
+                    8: { cellWidth: 15, halign: 'center' }, // minLen
+                    9: { cellWidth: 25 },  // Telefon
                 },
                 didDrawPage: function(data) {
                     // Seitenzahlen hinzufügen
