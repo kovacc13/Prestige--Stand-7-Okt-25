@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Filialen-Vergleich Österreich (Müller/Douglas)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f7f7;
+        }
+        .header {
+            background-color: #3b82f6; /* Blau */
+        }
+        .table-header-cell {
+            cursor: pointer;
+            user-select: none;
+        }
+        .table-header-cell:hover {
+            background-color: #e0e7ff;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header text-white p-6 shadow-lg rounded-b-xl">
+        <div class="max-w-7xl mx-auto">
+            <h1 class="text-3xl font-bold mb-1">Filialübersicht Österreich</h1>
+            <p class="text-blue-100">Kombinierte Daten aus den hochgeladenen Dateien (`Gebiet Österreich...csv` und `noition export 1.csv`).</p>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto p-4 md:p-8">
+
+        <!-- Download-Sektion hinzugefügt -->
+        <div class="bg-indigo-50 p-6 rounded-xl shadow-md mb-6 flex flex-col md:flex-row justify-between items-center">
+            <h3 class="text-lg font-semibold text-gray-700 mb-4 md:mb-0">Daten herunterladen:</h3>
+            <div class="space-y-2 md:space-y-0 md:space-x-4">
+                <button onclick="downloadCSV()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg shadow transition duration-150 w-full md:w-auto">
+                    Download als CSV
+                </button>
+                <button onclick="downloadXLSX()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow transition duration-150 w-full md:w-auto">
+                    Download als Excel (XLS)
+                </button>
+            </div>
+        </div>
+        <!-- Ende Download-Sektion -->
+
+        <div class="bg-white p-6 rounded-xl shadow-lg mb-6">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4 sm:mb-0">Filial-Details</h2>
+                <input type="text" id="searchInput" placeholder="Filtern nach Name, Stadt oder PLZ..." class="p-3 border border-gray-300 rounded-lg w-full sm:w-80 focus:ring-blue-500 focus:border-blue-500 transition duration-150">
+            </div>
+
+            <!-- Tabelle -->
+            <div class="overflow-x-auto rounded-lg border border-gray-200 shadow-inner">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-indigo-100">
+                        <tr>
+                            <th id="sort-type" class="table-header-cell px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider rounded-tl-lg hover:bg-indigo-200" data-sort-key="type">Typ <span class="sort-icon"></span></th>
+                            <th id="sort-name" class="table-header-cell px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider hover:bg-indigo-200" data-sort-key="name">Filialname <span class="sort-icon"></span></th>
+                            <th id="sort-street" class="table-header-cell px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider hover:bg-indigo-200" data-sort-key="street">Straße <span class="sort-icon"></span></th>
+                            <th id="sort-plz" class="table-header-cell px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider hover:bg-indigo-200" data-sort-key="plz">PLZ <span class="sort-icon"></span></th>
+                            <th id="sort-city" class="table-header-cell px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider hover:bg-indigo-200" data-sort-key="city">Stadt <span class="sort-icon"></span></th>
+                            <th id="sort-state" class="table-header-cell px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider hover:bg-indigo-200" data-sort-key="state">Bundesland <span class="sort-icon"></span></th>
+                            <th id="sort-phone" class="table-header-cell px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider rounded-tr-lg hover:bg-indigo-200" data-sort-key="phone">Telefon <span class="sort-icon"></span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="storeTableBody" class="bg-white divide-y divide-gray-100">
+                        <!-- Daten werden hier per JavaScript eingefügt -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="noResults" class="hidden text-center p-8 text-gray-500">
+                Keine Ergebnisse gefunden, die den Suchkriterien entsprechen.
+            </div>
+            <div id="loading" class="text-center p-8 text-blue-500 font-semibold">
+                Daten werden geladen und verarbeitet...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Daten aus den hochgeladenen Dateien
+        const file1Content = `FI ID,Unnamed: 1,ERP ID,Accountname,Name 2,Name 3,Straße (Rechnungsanschrift),PLZ (Rechnungsanschrift),Stadt (Rechnungsanschrift),Ländercode,Cell Longevity,minLen
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5607,Wien Stadion Center,Olympiaplatz 1,1020,Wien,AT,X,
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5629,Wien Galleria Einkaufszentrum,Landstraßer Hauptstr. 99-101,1030,Wien,AT,X,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5656,Wien Mitte,Landstraßer Hauptstraße 1B,1030,Wien,AT,X,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 1954,Wien Mariahilfer Straße,Mariahilfer Str. 97,1060,Wien,AT,X,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5604,Wien Favoriten,Favoritenstr. 112-114,1100,Wien,AT,X,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5694,Wien Triester Strasse,Triester Straße 40,1100,Wien,AT,,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5669,Wien Hauptbahnhof,Am Hauptbahnhof 1  Top EG 138,1100,Wien,AT,X,
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5636,Wien Zentrum Simmering,Simmeringer Hauptstr. 96a,1110,Wien,AT,X,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5692,Wien Huma,Landwehrstr. 6,1110,Wien,AT,X,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 1962,Wien Meidling,Philadelphiabrücke  / Wilhelm Str. 66/68,1120,Wien,AT,X,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5700,Wien Vio,Schönbrunner Str. 230,1120,Wien,AT,X,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5657,Wien Auhof Center,Albert-Schweitzer-Gasse 6,1140,Wien,AT,X,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5643,Wien Bahnhof City Wien West,Europaplatz 2,1150,Wien,AT,X,
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5716,Wien Millennium City,Handelskai 94-96,1200,Wien,AT,X,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5614,Wien Floridsdorf,Franz-Jonas-Platz 2-3,1210,Wien,AT,X,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5685,Wien SCN-Shopping Center Nord,Ignaz-Köck-Str 1,1210,Wien,AT,X,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5644,Wien Donau Zentrum,Wagramer Str. 94 Top 54,1220,Wien,AT,X,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5610,Wien Stadlau,Gewerbeparkstr. 10,1220,Wien,,,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5711,Wien Breitenfurter Straße,Breitenfurter Straße 345-353,1230,Wien,,,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5652,Gerasdorf G3 Shopping Resort,G3 Platz 1,2201,Gerasdorf bei Wien,AT,X,
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5655,Vösendorf Shopping City Süd,Shopping City Süd / Galerie 251 / Eingang Müller,2334,Vösendorf,AT,X,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5608,Bruck/Leitha,Eco-Plus-Park 4.Straße Top 15,2460,Bruck/Leitha,AT,X,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5619,Oeynhausen,Triester Str. 72,2512,Oeynhausen,,,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5681,Neunkirchen Panoramapark,Schraubenwerkstr. 1,2620,Neunkirchen,,,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5670,Wiener Neustadt Merkurcity,Stadionstr. 10-12,2700,Wiener Neustadt,AT,X,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5667,St. Poelten,Brunngasse 3/5,3100,St. Poelten,AT,X,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5712,Neufurth,Schwarzer Weg 2,3363,Neufurth,,,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5707,Tulln,Hauptplatz 12-14,3430,Tulln,AT,X,
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5708,Krems EKZ Bühlcenter,Wiener Str. 96-102,3500,Krems an der Donau,,,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5704,Linz Lentia,Blütenstr. 13-23,4040,Linz,AT,X,X
+,,,MHA Reinhard Müller  HandelsgmbH,Filiale 1963,Pasching Plus City,Pluskaufstr. 7,4061,Pasching,AT,X,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5696,Rohrbach,Hanriederstraße 8/1,4150,Rohrbach,AT,X,
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5688,Perg FMZ,Gewerbestraße 6,4320,Perg,,,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5682,Steyr EKZ,Anton Plochberger Str. 2,4400,Steyr,AT,X,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5601,Wels Shoppingcity,Salzburger Str. 223,4600,Wels,AT,X,
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5647,,Druckereistr. 3-30,4810,Gmunden,,,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5728,Bad Ischl,Götzstraße 8-10,4820,Bad Ischl,,,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5606,Seewalchen,Anton Bruckner Str. 1,4863,Seewalchen am Attersee,,,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5672,Ried im Innkreis,Weberzeile 1,4910,Ried im Innkreis,AT,X,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5625,Salzburg Forum,Südtiroler Platz 13,5020,Salzburg,AT,X,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5668,Salzburg SCA,Alpenstr. 114-120,5020,Salzburg,AT,X,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5726,Eugendorf,Möbelstrasse 12,5301,Eugendorf,AT,X,
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5709,Bischofshofen,Gasteiner Str. 46,5500,Bischofshofen,AT,X,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5721,Innsbruck DEZ,Amraser-See-Straße 56a,6020,Innsbruck,AT,X,X
+,,,Müller Ltd. & Co. KG,Filiale 1958,Innsbruck Rathausgalerie,Maria Theresienstr. 18,6020,Innsbruck,AT,X,X
+,,,MH Müller Handels GmbH,Filiale 3592,Schwaz Stadt Galerien,Andreas Hoferstr. 10,6130,Schwaz,AT,X,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5698,Völs Ekz Cyta,Cytastraße 1,6176,Völs,AT,X,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5600,Wörgl M4,Salzburger Str. 32,6300,Wörgl,AT,X,
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5719,Imst - EKZ,Industriezone 32,6460,Imst,AT,X,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5623,Reutte,Mühlerstr. 11c,6600,Reutte,,,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5645,Götzis,Am Garnmarkt 12-18,6840,Götzis,,,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5730,Hohenems,Lustenauer Str. 123,6845,Hohenems,,,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5605,Eisenstadt,Johann-Pack-Str. 4,7000,Eisenstadt,AT,X,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5674,Parndorf,Richard-Erlinger-Platz 1 / Top 8,7111,Parndorf,,,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5616,Oberwart EO Einkaufszentrum,Europa Str. 1,7400,Oberwart,AT,X,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5603,Graz Citypark,Lazarettgürtel 55,8020,Graz,AT,X,
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5738,Graz Murpark,Ostbahnstr. 3,8041,Graz,,,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5678,,Wiener Str. 333,8051,Graz,,,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5731,Graz - Center West,Weblinger Gürtel 25,8054,Graz,,,X
+,,,Müller Ltd. & Co. KG,Filiale 1961,Seiersberg,Seiersberg 1-9,8055,Seiersberg-Pirka,AT,X,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5680,Hartberg FMZ Hatric,Im Hatric 12,8230,Hartberg,,,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5687,Feldbach,Gewerbepark 9,8330,Feldbach,,,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5618,Leibnitz,Leopold-Figl-Str. 1,8430,Leibnitz,,X,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5650,Deutschlandsberg,Frauentaler Str. 70,8530,Deutschlandsberg,,,
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5690,Bärnbach WEZ,Packer Straße 18,8572,Bärnbach,,,
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5710,Kapfenberg - Apfelmoar,Gewerbestraße 20,8605,Kapfenberg,AT,X,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5654,Leoben,Hauptplatz 17,8700,Leoben,,,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5617,Fohnsdorf,Arena am Waldfeld 26,8753,Fohnsdorf,,,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5621,Liezen,Gesäusestr. 3,8940,Liezen,,,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5679,Klagenfurt FMZ Kika,Völkermarkter Straße 163,9020,Klagenfurt,,,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5602,Klagenfurt City Arkaden,St.-Veiter-Ring 20,9020,Klagenfurt,AT,X,
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5676,Völkermarkt,Umfahrungsstr. 22,9100,Völkermarkt,,,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5664,St. Veit an der Glan,Völkermarkter Str. 36,9300,St. Veit an der Glan,,,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5677,Wolfsberg Klagenfurter Strasse,Klagenfurter Str. 41,9400,Wolfsberg,,,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5635,Villach ATRIO,Kärntner Str. 34,9500,Villach,AT,X,
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5683,Villach FMZ,Maria-Gailer-Straße 57 / Top 02,9500,Villach,,,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5703,Feldkirchen,Kindergartenstr. 1,9560,Feldkirchen in Kärnten,,,X
+,,,MHA Reinhard Müller HandelsgmbH,Filiale 5684,Spittal a.d. Drau,Villacher Straße 103,9800,Spittal an der Drau,,,X
+6223026,,,Parfümerie Douglas,VST 5 AT,,Kärntner Straße 17,1010,Wien,AT,X,
+6223029,,,Parfümerie Douglas,VST 16 AT,"Donauzentrum, OG Top 922",Wagramer Straße 81,1220,Wien,AT,X,
+6223027,,,Parfümerie Douglas,VST 12 AT,,SCS Allee 124,2334,Vösendorf,AT,X,
+6223030,,,Parfümerie Douglas,VST 41 AT,PlusCity,Pluskaufstraße 7,4061,Pasching,AT,X,
+6223028,,,Parfümerie Douglas,VST 36 AT,Shopping City Seiersberg,Seiersberg 5,8055,Seiersberg,AT,X,
+`;
+
+        const file2Content = `Name,Adresse,Aufgaben,Besuche,Bundesland,E-Mail,Leiter,PLZ,Retailer-Plan,Status,Telefon,Weleda-Plan-Status,Zusätzliche Infos/Link
+"Müller Feldkirchen,""Kindergartenstraße 1, 9560 Feldkirchen"",,,Kärnten,info@mueller.at,,9560,,,+43 59120 5703,,"
+"Müller Klagenfurt City Arkaden,""St. Veiter Ring 20, 9020 Klagenfurt"",,,Kärnten,info@mueller.at,,9020,,,+43 59120 5602,,"
+"Müller Klagenfurt (FMZ Kika),""Völkermarkter Straße 163, 9020 Klagenfurt"",,,Kärnten,info@mueller.at,,9020,,,+43 59120 5679,,"
+"Müller St. Veit/Glan,""Völkermarkter Straße 36, 9300 St. Veit/Glan"",,,Kärnten,info@mueller.at,,9300,,,+43 59120 5664,,"
+"Müller Spittal/Drau,""Villacher Straße 103, 9800 Spittal/Drau"",,,Kärnten,info@mueller.at,,9800,,,+43 59120 5684,,"
+"Müller Villach ATRIO,""Kärntner Straße 34, 9500 Villach"",,,Kärnten,info@mueller.at,,9500,,,+43 59120 5635,,"
+"Müller Villach (FMZ),""Maria-Gailer-Straße 57/Top 02, 9500 Villach"",,AI-Berichtsvorlage (https://www.notion.so/AI-Berichtsvorlage-28e3e539a522807d82c8fae509bf74bb?pvs=21),Kärnten,info@mueller.at,,9500,,,+43 59120 5683,,"
+"Müller Völkermarkt,""Umfahrungsstraße 22, 9100 Völkermarkt"",,,Kärnten,info@mueller.at,,9100,,,+43 59120 5676,,"
+"Müller Wolfsberg,""Klagenfurter Straße 41, 9400 Wolfsberg"",,,Kärnten,info@mueller.at,,9400,,,+43 59120 5677,,"
+"Müller Bruck/Leitha,""Eco-Plus-Park, 4. Straße Top 15, 2460 Bruck/Leitha"",,,Niederösterreich,info@mueller.at,,2460,,,+43 59120 5608,,"
+"Müller Gerasdorf G3,""G3 Platz 1, 2201 Gerasdorf b. Wien"",,,Niederösterreich,info@mueller.at,,2201,,,+43 59120 5652,,"
+"Müller Neufurth,""Schwarzer Weg 2, 3363 Neufurth"",,,Niederösterreich,info@mueller.at,,3363,,,+43 59120 5712,,"
+"Müller Neunkirchen Panoramapark,""Schraubenwerkstraße 1, 2620 Neunkirchen"",,,Niederösterreich,info@mueller.at,,2620,,,+43 59120 5681,,"
+"Müller Oeynhausen,""Triester Straße 72, 2512 Oeynhausen"",,,Niederösterreich,info@mueller.at,,2512,,,+43 59120 5619,,"
+"Müller St. Pölten,""Brunngasse 3/5, 3100 St. Pölten"",,,Niederösterreich,info@mueller.at,,3100,,,+43 59120 5667,,"
+"Müller Tulln,""Hauptplatz 12–14, 3430 Tulln"",,,Niederösterreich,info@mueller.at,,3430,,,+43 59120 5707,,"
+"Douglas Vösendorf SCS,""SCS Allee 124, 2334 Vösendorf"",,,Niederösterreich,service@douglas.at,,2334,,,+43 1 6991372,,https://www.westfield.com/austria/scs/store/DOUGLAS/72143"
+"Müller Vösendorf SCS,""Shopping City Süd – Galerie 251/Eing. Müller, 2334 Vösendorf"",,,Niederösterreich,info@mueller.at,,2334,,,+43 59120 5655,,https://www.westfield.com/austria/scs/store/M%C3%BCller/736"
+"Müller Wr. Neustadt MerkurCity,""Stadionstraße 10–12, 2700 Wiener Neustadt"",,,Niederösterreich,info@mueller.at,,2700,,,+43 59120 5670,,"
+"Müller Bad Ischl,""Götzstraße 8–10, 4820 Bad Ischl"",,,Oberösterreich,info@mueller.at,,4820,,,+43 59120 5728,,"
+"Müller Gmunden,""Druckereistraße 3–30, 4810 Gmunden"",,,Oberösterreich,info@mueller.at,,4810,,,+43 59120 5647,,"
+"Müller Linz Lentia City,""Blütenstraße 13–23, 4040 Linz"",,,Oberösterreich,info@mueller.at,,4040,,,+43 59120 5704,,"
+"Douglas Pasching PlusCity,""Pluskaufstraße 7, 4061 Pasching"",,,Oberösterreich,service@douglas.at,,4061,,,+43 7229 70880,,PlusCity Shop"
+"Müller Pasching PlusCity,""Pluskaufstraße 7, 4061 Pasching"",,,Oberösterreich,info@mueller.at,,4061,,,+43 59120 1963,,"
+"Müller Perg FMZ,""Gewerbestraße 6, 4320 Perg"",,,Oberösterreich,info@mueller.at,,4320,,,+43 59120 5688,,"
+"Müller Ried/Innkreis,""Weberzeile 1, 4910 Ried im Innkreis"",,,Oberösterreich,info@mueller.at,,4910,,,+43 59120 5672,,"
+"Müller Rohrbach,""Hanriederstraße 8/1, 4150 Rohrbach"",,,Oberösterreich,info@mueller.at,,4150,,,+43 59120 5696,,"
+"Müller Seewalchen,""Anton-Bruckner-Straße 1, 4863 Seewalchen a. Attersee"",,,Oberösterreich,info@mueller.at,,4863,,,+43 59120 5606,,"
+"Müller Steyr EKZ,""Anton Plochberger-Straße 2, 4400 Steyr"",,,Oberösterreich,info@mueller.at,,4400,,,+43 59120 5682,,"
+"Müller Wels SCW,""Salzburger Straße 223, 4600 Wels"",,,Oberösterreich,info@mueller.at,,4600,,,+43 59120 5601,,"
+"Müller Bischofshofen,""Gasteiner Straße 46, 5500 Bischofshofen"",,,Salzburg,info@mueller.at,,5500,,,+43 59120 5709,,"
+"Müller Eugendorf,""Möbelstraße 12, 5301 Eugendorf"",,,Salzburg,info@mueller.at,,5301,,,+43 59120 5726,,"
+"Müller Salzburg Alpenstraße,""Alpenstraße 114–120, 5020 Salzburg"",,AI-Berichtsvorlage (https://www.notion.so/AI-Berichtsvorlage-28e3e539a52280e59efdcf68e9f9cf84?pvs=21),Salzburg,info@mueller.at,,5020,,,+43 59120 5668,,"
+"Müller Salzburg Forum 1,""Südtiroler Platz 13, 5020 Salzburg"",,,Salzburg,info@mueller.at,,5020,,,+43 59120 5625,,"
+"Müller Bärnbach (WEZ),""Packer Straße 18, 8572 Bärnbach"",,AI-Berichtsvorlage (https://www.notion.so/AI-Berichtsvorlage-28e3e539a522805495e3e2764a90eed8?pvs=21),Steiermark,info@mueller.at,,8572,,,+43 59120 5690,,"
+"Müller Deutschlandsberg,""Frauentaler Straße 70, 8530 Deutschlandsberg"",,,Steiermark,info@mueller.at,,8530,,,+43 59120 5650,,"
+"Müller Feldbach,""Gewerbepark 9, 8330 Feldbach"",,,Steiermark,info@mueller.at,,8330,,,+43 59120 5687,,"
+"Müller Fohnsdorf (Arena),""Arena am Waldfeld 26, 8753 Fohnsdorf"",,,Steiermark,info@mueller.at,,8753,,,+43 59120 5617,,"
+"Müller Graz Center West,""Weblinger Gürtel 25, 8054 Graz"",,,Steiermark,info@mueller.at,,8054,,,+43 59120 5731,,"
+"Müller Graz Citypark,""Lazarettgürtel 55, 8020 Graz"",,,Steiermark,info@mueller.at,,8020,,,+43 59120 5603,,https://www.citypark.at/shops/mueller-drogerie-und-parfuemerie/"
+"Müller Graz Murpark,""Ostbahnstraße 3, 8041 Graz"",,,Steiermark,info@mueller.at,,8041,,,+43 59120 5738,,"
+"Müller Graz Straßgang,""Wiener Straße 333, 8051 Graz"",,,Steiermark,info@mueller.at,,8051,,,+43 59120 5678,,"
+"Müller Hartberg Hatric,""Im Hatric 12, 8230 Hartberg"",,,Steiermark,info@mueller.at,,8230,,,+43 59120 5680,,"
+"Müller Kapfenberg (Apfelmoar),""Gewerbestraße 20, 8605 Kapfenberg"",,,Steiermark,info@mueller.at,,8605,,,+43 59120 5710,,"
+"Müller Leibnitz,""Leopold-Figl-Straße 1, 8430 Leibnitz"",,,Steiermark,info@mueller.at,,8430,,,+43 59120 5618,,"
+"Müller Leoben,""Hauptplatz 17, 8700 Leoben"",,,Steiermark,info@mueller.at,,8700,,,+43 59120 5654,,"
+"Müller Liezen,""Gesäusestraße 3, 8940 Liezen"",,,Steiermark,info@mueller.at,,8940,,,+43 59120 5621,,"
+"Douglas Seiersberg (Shopping City),""Shopping City Seiersberg 5/2/6, 8055 Seiersberg"",,,Steiermark,service@douglas.at,,8055,,,+43 316 296925,,SCS Seiersberg"
+"Müller Seiersberg,""Shopping City Seiersberg 1–9, 8055 Seiersberg-Pirka"",,,Steiermark,info@mueller.at,,8055,,,+43 59120 1961,,"
+"Müller Imst (FMZ),""Industriezone 32, 6460 Imst"",,,Tirol,info@mueller.at,,6460,,,+43 59120 5719,,"
+"Müller Innsbruck DEZ,""Amraser-See-Straße 56a, 6020 Innsbruck"",,,Tirol,info@mueller.at,,6020,,,+43 59120 5721,,"
+"Müller Innsbruck RathausGal.,""Maria-Theresien-Straße 18, 6020 Innsbruck"",,,Tirol,info@mueller.at,,6020,,,+43 59120 1958,,"
+"Müller Reutte,""Mühlerstraße 11c, 6600 Reutte"",,,Tirol,info@mueller.at,,6600,,,+43 59120 5623,,"
+"Müller Schwaz Stadtgalerien,""Andreas-Hofer-Straße 10, 6130 Schwaz"",,,Tirol,info@mueller.at,,6130,,,+43 59120 3592,,"
+"Müller Völs EKZ Cyta,""Cytastraße 1, 6176 Völs"",,,Tirol,info@mueller.at,,6176,,,+43 59120 5698,,"
+"Müller Wörgl M4,""Salzburger Straße 32, 6300 Wörgl"",,,Tirol,info@mueller.at,,6300,,,+43 59120 5600,,"
+"Müller Götzis,""Am Garnmarkt 12–18, 6840 Götzis"",,,Vorarlberg,info@mueller.at,,6840,,,+43 59120 5645,,"
+"Müller Hohenems,""Lustenauer Straße 123, 6845 Hohenems"",,,Vorarlberg,info@mueller.at,,6845,,,+43 59120 5730,,"
+"Müller Wien Stadion Center,""Olympiaplatz 1, 1020 Wien"",,,Wien,info@mueller.at,,1020,,,+43 59120 5607,,"
+"Douglas Wien Kärntner Straße,""Kärntner Straße 17, 1010 Wien"",,,Wien,service@douglas.at,,1010,,,+43 1 5124241,,Douglas Filiale"
+"Douglas Wien Donau Zentrum,""Wagramer Straße 81 (Top 922), 1220 Wien"",,,Wien,service@douglas.at,,1220,,,+43 1 2049600,,https://www.westfield.com/austria/donauzentrum/store/Douglas/72144"
+"Müller Wien Donau Zentrum,""Wagramer Straße 94 (Top 54), 1220 Wien"",,,Wien,info@mueller.at,,1220,,,+43 59120 5644,,"
+"Müller Wien Favoriten,""Favoritenstraße 112–114, 1100 Wien"",,,Wien,info@mueller.at,,1100,,,+43 59120 5604,,"
+"Müller Wien Floridsdorf,""Franz-Jonas-Platz 2–3, 1210 Wien"",,,Wien,info@mueller.at,,1210,,,+43 59120 5614,,"
+"Müller Wien Hauptbahnhof,""Am Hauptbahnhof 1 (EG 138), 1100 Wien"",,,Wien,info@mueller.at,,1100,,,+43 59120 5669,,"
+"Müller Wien Huma Eleven,""Landwehrstraße 6, 1110 Wien"",,,Wien,info@mueller.at,,1110,,,+43 59120 5692,,"
+"Müller Wien Mariahilfer Str.,""Mariahilfer Straße 97, 1060 Wien"",,,Wien,info@mueller.at,,1060,,,+43 59120 1954,,"
+"Müller Wien Meidling,""Wilhelmstraße 66/68, 1120 Wien (Philadelphiabrücke)"",,,Wien,info@mueller.at,,1120,,,+43 59120 1962,,"
+"Müller Wien Millennium City,""Handelskai 94–96, 1200 Wien"",,,Wien,info@mueller.at,,1200,,,+43 59120 5716,,"
+"Müller Wien SCN (Nord),""Ignaz-Köck-Straße 1, 1210 Wien"",,,Wien,info@mueller.at,,1210,,,+43 59120 5685,,"
+"Müller Wien Stadlau,""Gewerbeparkstraße 10, 1220 Wien"",,,Wien,info@mueller.at,,1220,,,+43 59120 5610,,"
+"Müller Wien Triester Straße,""Triester Straße 40, 1100 Wien"",,,Wien,info@mueller.at,,1100,,,+43 59120 5694,,"
+"Müller Wien ""Vio"" (Meidling),""Schönbrunner Straße 230, 1120 Wien"",,,Wien,info@mueller.at,,1120,,,+43 59120 5700,,"
+"Müller Wien Zentrum Simmering,""Simmeringer Hauptstraße 96a, 1110 Wien"",,,Wien,info@mueller.at,,1110,,,+43 59120 5636,,"
+"Müller Wien Bahnhof City Wien West,""Europaplatz 2, 1150 Wien"",,,Wien,info@mueller.at,,1150,,Aktiv,+43 59120 5643,,"
+"Müller Wien Auhof Center,""Albert-Schweitzer-Gasse 6, 1140 Wien"",,,Wien,info@mueller.at,,1140,,Aktiv,+43 59120 5657,,"
+"Müller Wien Breitenfurter Straße,""Breitenfurter Straße 345-353, 1230 Wien"",,,Wien,info@mueller.at,,1230,,Aktiv,+43 59120 5711,,"
+"Müller Krems EKZ Bühlcenter,""Wiener Str. 96-102, 3500 Krems an der Donau"",,,Niederösterreich,info@mueller.at,,3500,,Aktiv,+43 59120 5708,,"
+"Müller Eisenstadt,""Johann-Pack-Str. 4, 7000 Eisenstadt"",,,,info@mueller.at,,7000,,Aktiv,+43 59120 5605,,"
+"Müller Oberwart EO Einkaufszentrum,""Europa Str. 1, 7400 Oberwart"",,,,info@mueller.at,,7400,,Aktiv,+43 59120 5616,,"
+"Müller Parndorf,""Richard-Erlinger-Platz 1 / Top 8, 7111 Parndorf"",,,,info@mueller.at,,7111,,Aktiv,+43 59120 5674,,"
+"Müller Wien Mitte,""Landstraßer Hauptstraße 1B, 1030 Wien"",,,Wien,info@mueller.at,,1030,,Aktiv,+43 59120 5656,,"
+"Müller Wien Galleria (Landstraße),""Landstraßer Hauptstr. 99-101, 1030 Wien"",,,Wien,info@mueller.at,,1030,,Aktiv,+43 59120 5629,,"
+"Müller Wien Mariahilfer Straße,""Mariahilfer Str. 97, 1060 Wien"",,,Wien,info@mueller.at,,1060,,Aktiv,+43 59120 1954,,"
+`;
+
+        let storeData = [];
+        let currentTableData = []; // Hält die aktuell gefilterten/sortierten Daten
+        let sortColumn = 'city';
+        let sortDirection = 'asc';
+
+        /**
+         * Einfaches CSV-Parsing (nimmt an, dass kein Komma in der Zelle ist, außer bei File2 in der Adresse)
+         * @param {string} csvText - Der rohe CSV-Text.
+         * @param {string} delimiter - Das Trennzeichen (typischerweise Komma oder Semikolon).
+         * @returns {Array<Array<string>>} Array von Zeilen, wobei jede Zeile ein Array von Zellen ist.
+         */
+        function parseCSV(csvText, delimiter) {
+            const lines = csvText.trim().split('\n');
+            const data = [];
+            
+            // Ermittle, ob Anführungszeichen zur Kapselung verwendet werden (wie in file2)
+            const hasQuotes = lines.length > 1 && lines[1].includes('"');
+
+            if (hasQuotes) {
+                // Erweiterter Parser für Anführungszeichen und Komma-Trennung (speziell für file2)
+                for (let i = 1; i < lines.length; i++) { // Überspringe Header
+                    // Spezielles Parsing für die Notion-Export-Struktur
+                    const line = lines[i];
+                    // Ersetze doppelte Anführungszeichen durch einfache (innerhalb der Daten)
+                    let cleanLine = line.replace(/""/g, '"'); 
+                    
+                    // Regex, um die Felder zu extrahieren.
+                    // Sucht nach: Anführungszeichen (optional), dann den Inhalt, dann Anführungszeichen (optional), gefolgt von einem Komma (optional)
+                    const regex = /(?:^|,)(\"(?:[^\"]|\"\")*\"|[^,]*)/g;
+                    let match;
+                    const row = [];
+
+                    // Starte die Suche ab dem 0. Index der Zeile
+                    let currentPosition = 0;
+                    while ((match = regex.exec(cleanLine)) !== null) {
+                        // Der erste match (Index 0) ist das gesamte gematchte Substring (inkl. Komma davor)
+                        // Der zweite match (Index 1) ist die Gruppe, die den Zelleninhalt enthält
+                        let cell = match[1];
+
+                        // Entferne die äußeren Anführungszeichen, falls vorhanden
+                        if (cell.startsWith('"') && cell.endsWith('"')) {
+                            cell = cell.substring(1, cell.length - 1);
+                        }
+                        
+                        // Das erste Feld hat kein führendes Komma, das ignoriert werden muss
+                        if (match.index > 0 || row.length === 0) {
+                             // Füge die bereinigte Zelle hinzu und ersetze doppelte Anführungszeichen wieder mit einfachen
+                            row.push(cell.replace(/\\"/g, '"').trim()); 
+                        }
+                        currentPosition = match.index + match[0].length;
+                        
+                        // Break, wenn das Ende der Zeile erreicht ist (um endlose Schleifen zu vermeiden)
+                        if (match.index === regex.lastIndex) {
+                            regex.lastIndex++;
+                        }
+                    }
+
+                    if (row.length > 0) {
+                        data.push(row.map(c => c.replace(/\\"/g, '"').trim())); // Endgültiges Trimmen und Bereinigen
+                    }
+                }
+            } else {
+                // Einfacher Parser für Komma-Trennung ohne Anführungszeichen (file1)
+                const header = lines[0].split(delimiter);
+                for (let i = 1; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (line) {
+                        // Da file1 keine Kommas in den Feldern hat, können wir es einfach splitten
+                        data.push(line.split(delimiter).map(cell => cell.trim()));
+                    }
+                }
+            }
+            return data;
+        }
+
+
+        /**
+         * Verarbeitet die rohen Daten zu einem standardisierten Array von Filialobjekten.
+         * @returns {Array<Object>} Das Array der Filialobjekte.
+         */
+        function processData() {
+            const data1 = parseCSV(file1Content, ',');
+            const data2 = parseCSV(file2Content, ','); // Behandelt intern die Anführungszeichen
+
+            const stores = new Map(); // Key: PLZ + Straße (zur eindeutigen Identifizierung)
+
+            // 1. Daten aus Datei 1 (Basisdaten) einlesen
+            data1.forEach(row => {
+                // Spaltenindizes für Datei 1
+                const accountName = row[3] || 'N/A';
+                const name3 = row[5] || '';
+                const name2 = row[4] || '';
+                let street = row[6] || 'N/A';
+                const plz = row[7] || 'N/A';
+                const city = row[8] || 'N/A';
+                
+                let storeName = '';
+                let type = '';
+                
+                if (accountName.includes('Douglas')) {
+                    type = 'Douglas';
+                    // Douglas Filialname aus Name 2 + Name 3 + Stadt zusammenbauen
+                    storeName = (name2.replace(/VST \d+ AT/g, '').trim() || name3.trim() || city) + (name3 ? ' (' + name3 + ')' : '');
+                    storeName = storeName.replace(/Donauzentrum, OG Top 922/, 'Donauzentrum').trim();
+                    storeName = 'Douglas ' + storeName.replace(/Douglas/, '').trim();
+                } else {
+                    type = 'Müller';
+                    storeName = 'Müller ' + (name3.trim() || name2.replace(/Filiale \d+/g, '').trim() || city);
+                }
+
+                // Normalisiere die Straße für den Schlüssel (entferne Leerzeichen und mache Kleinbuchstaben)
+                const key = (plz + street).toLowerCase().replace(/\s/g, '');
+
+                if (key.includes('n/a')) return; // Ungültige Adresse überspringen
+
+                stores.set(key, {
+                    type: type,
+                    name: storeName.replace(/\s+/g, ' ').trim(), // Reduziere mehrfache Leerzeichen
+                    street: street.replace(/\s+/g, ' ').trim(),
+                    plz: plz,
+                    city: city,
+                    state: '', // Wird später aus Datei 2 ergänzt
+                    phone: '', // Wird später aus Datei 2 ergänzt
+                    fullAddress: `${street}, ${plz} ${city}`,
+                });
+            });
+
+
+            // 2. Daten aus Datei 2 (Telefonnummern, Bundesland) ergänzen
+            data2.forEach(row => {
+                // Spaltenindizes für Datei 2 (Notion Export)
+                const name2 = row[0] || ''; // Name
+                const addressFull = row[1] || ''; // Adresse
+                const state = row[4] || ''; // Bundesland
+                const plz = row[7] || ''; // PLZ
+                const phone = row[10] || ''; // Telefon
+
+                if (!plz) return; // Überspringe Zeilen ohne PLZ
+
+                // Adresse für Schlüssel normalisieren:
+                // Nur den Straßenteil extrahieren (alles vor dem PLZ-Teil)
+                let street = '';
+                const addressMatch = addressFull.match(/\"([^\,]*), \s*\d{4}\s*([^\"]*)\"/); // Sucht nach "Straße, PLZ Ort"
+                if (addressMatch && addressMatch[1]) {
+                    street = addressMatch[1].trim();
+                }
+                
+                // Für Douglas: Adresse ist im Format "SCS Allee 124, 2334 Vösendorf"
+                // Für Müller: Adresse ist im Format "Kindergartenstraße 1, 9560 Feldkirchen"
+
+                // Alternative zur Regex, um die Straße zu finden
+                if (street.includes('Gewerbeparkstraße')) {
+                    street = 'Gewerbeparkstr. 10'; // Korrektur für Wien Stadlau
+                } else if (street.includes('Shopping City Süd – Galerie 251/Eing. Müller')) {
+                    street = 'Shopping City Süd / Galerie 251 / Eingang Müller'; // Korrektur für Vösendorf
+                } else if (street.includes('Shopping City Seiersberg 5/2/6')) {
+                    street = 'SCS Allee 124'; // Douglas Seiersberg (Verwendung der Douglas-Adresse aus Datei 1)
+                } else if (street.includes('Shopping City Seiersberg 1–9')) {
+                    street = 'Seiersberg 1-9'; // Müller Seiersberg (Verwendung der Müller-Adresse aus Datei 1)
+                } else if (street.includes('Wilhelmstraße 66/68')) {
+                    street = 'Philadelphiabrücke  / Wilhelm Str. 66/68'; // Müller Wien Meidling (Verwendung der Müller-Adresse aus Datei 1)
+                } else if (street.includes('Am Hauptbahnhof 1 (EG 138)')) {
+                    street = 'Am Hauptbahnhof 1  Top EG 138'; // Müller Wien Hauptbahnhof (Verwendung der Müller-Adresse aus Datei 1)
+                } else if (street.includes('Wagramer Straße 81 (Top 922)')) {
+                    street = 'Wagramer Straße 81'; // Douglas Donau Zentrum (Verwendung der Douglas-Adresse aus Datei 1)
+                } else if (street.includes('Richard-Erlinger-Platz 1 / Top 8')) {
+                    street = 'Richard-Erlinger-Platz 1 / Top 8'; // Parndorf (stimmt in beiden überein)
+                } else if (street.includes('SCS Allee 124')) {
+                    street = 'SCS Allee 124'; // Douglas Vösendorf (stimmt in beiden überein)
+                }
+                
+                // Normalisiere Straße von Datei 2 (nur erste Zeile bis Komma oder Klammer)
+                let cleanedStreet2 = street.split(',')[0].split('(')[0].trim();
+                
+                // Entferne Top-Nummern oder Zusätze, um den Schlüssel zu treffen
+                if (cleanedStreet2.includes('Wagramer Straße')) { cleanedStreet2 = 'Wagramer Str. 94'; }
+                if (cleanedStreet2.includes('Landstraßer Hauptstr.')) { cleanedStreet2 = 'Landstraßer Hauptstr. 99-101'; }
+                if (cleanedStreet2.includes('Landstraßer Hauptstraße')) { cleanedStreet2 = 'Landstraßer Hauptstraße 1B'; }
+                if (cleanedStreet2.includes('Mariahilfer Straße')) { cleanedStreet2 = 'Mariahilfer Str. 97'; }
+                if (cleanedStreet2.includes('Triester Straße 40')) { cleanedStreet2 = 'Triester Straße 40'; }
+                if (cleanedStreet2.includes('Simmeringer Hauptstraße')) { cleanedStreet2 = 'Simmeringer Hauptstr. 96a'; }
+                if (cleanedStreet2.includes('Landwehrstraße')) { cleanedStreet2 = 'Landwehrstr. 6'; }
+                if (cleanedStreet2.includes('Europaplatz')) { cleanedStreet2 = 'Europaplatz 2'; }
+                if (cleanedStreet2.includes('Handelskai')) { cleanedStreet2 = 'Handelskai 94-96'; }
+                if (cleanedStreet2.includes('Franz-Jonas-Platz')) { cleanedStreet2 = 'Franz-Jonas-Platz 2-3'; }
+                if (cleanedStreet2.includes('Ignaz-Köck-Straße')) { cleanedStreet2 = 'Ignaz-Köck-Str 1'; }
+                if (cleanedStreet2.includes('Gewerbeparkstraße 10')) { cleanedStreet2 = 'Gewerbeparkstr. 10'; }
+                if (cleanedStreet2.includes('Breitenfurter Straße')) { cleanedStreet2 = 'Breitenfurter Straße 345-353'; }
+                if (cleanedStreet2.includes('G3 Platz')) { cleanedStreet2 = 'G3 Platz 1'; }
+                if (cleanedStreet2.includes('Eco-Plus-Park')) { cleanedStreet2 = 'Eco-Plus-Park 4.Straße Top 15'; }
+                if (cleanedStreet2.includes('Brunngasse')) { cleanedStreet2 = 'Brunngasse 3/5'; }
+                if (cleanedStreet2.includes('Schwarzer Weg')) { cleanedStreet2 = 'Schwarzer Weg 2'; }
+                if (cleanedStreet2.includes('Hauptplatz')) { cleanedStreet2 = 'Hauptplatz 12-14'; }
+                if (cleanedStreet2.includes('Wiener Str. 96-102')) { cleanedStreet2 = 'Wiener Str. 96-102'; }
+
+                const key = (plz + cleanedStreet2).toLowerCase().replace(/\s/g, '').replace('top922', '').replace('top54', '').replace('top138', '').replace('top02', '').replace(/\//g, '');
+                
+                // Versuche, den Schlüssel zu finden und die Daten zu aktualisieren
+                let foundMatch = false;
+                
+                // Iteriere über alle vorhandenen Schlüssel und suche nach Übereinstimmung
+                for (let [existingKey, store] of stores.entries()) {
+                    // Normalisiere den existierenden Straßennamen von Datei 1
+                    let normalizedStoreStreet = store.street.toLowerCase().replace(/\s/g, '').replace('top', '').replace(/\//g, '');
+                    
+                    // Normalisiere den Straßennamen von Datei 2
+                    let normalizedCleanedStreet2 = cleanedStreet2.toLowerCase().replace(/\s/g, '').replace('top', '').replace(/\//g, '');
+
+                    // Bilde einen normalisierten Schlüssel für den Vergleich
+                    const normalizedKeyStore = (store.plz + normalizedStoreStreet);
+                    const normalizedKey2 = (plz + normalizedCleanedStreet2);
+
+                    // Spezielle Adresskorrekturen für den Match
+                    if (store.plz === '2334' && normalizedKey2.includes('scsallee')) {
+                        // Douglas Vösendorf
+                        normalizedKeyStore.replace('shoppingcitysüd/galerie251/eingangmüller', 'scsallee124');
+                    }
+                    if (store.plz === '8055' && normalizedKey2.includes('shoppingcityseiersberg')) {
+                        // Douglas Seiersberg
+                        normalizedKeyStore.replace('seiersberg1-9', 'seiersberg5');
+                    }
+
+
+                    if (normalizedKeyStore.includes(normalizedKey2) || normalizedKey2.includes(normalizedKeyStore) || (store.plz === plz && store.city.toLowerCase().includes(state.toLowerCase()) && store.type === name2.split(' ')[0])) {
+                        store.state = state || store.state;
+                        store.phone = phone || store.phone;
+                        store.name = name2.split('"')[0].trim() || store.name;
+                        // Manchmal ist die Adresse in File 2 besser/vollständiger
+                        if (addressMatch) {
+                            store.street = cleanedStreet2 || store.street;
+                        }
+
+                        // Speziell für die Douglas-Filialen, die nur in File 1 einen unklaren Namen hatten
+                        if (store.type === 'Douglas') {
+                            store.name = name2.split('"')[0].trim() || store.name;
+                            if (store.name.includes('(Top 922)')) {
+                                store.name = store.name.replace('(Top 922)', '').trim();
+                            }
+                        }
+                        
+                        foundMatch = true;
+                        break;
+                    }
+                }
+                
+                // Falls kein Match gefunden wurde und es sich um eine Müller-Filiale handelt
+                if (!foundMatch && name2.includes('Müller') && !stores.has(key)) {
+                    // Spezielle Behandlung für die Burgesland-Filialen, die in File 1 unvollständig waren
+                    if (plz === '7000' || plz === '7400' || plz === '7111') {
+                        // Adresse in File 1 war: Johann-Pack-Str. 4 (Eisenstadt), Europa Str. 1 (Oberwart), Richard-Erlinger-Platz 1 / Top 8 (Parndorf)
+                        // Diese sind bereits in File 1, aber dort fehlten Ländercode/Markierungen.
+                        // Hier werden sie nicht hinzugefügt, da sie in File 1 bereits enthalten sind (wenn auch mit kleinen Mängeln, die in der App ignoriert werden).
+                    }
+                }
+            });
+
+            // 3. Finales Array erstellen und sortieren
+            let finalData = Array.from(stores.values());
+            
+            // Ergänze Bundesland-Informationen, die in Datei 1, aber nicht in Datei 2 waren (manuelle Zuordnung)
+            const cityStateMap = {
+                'Wien': 'Wien', 'Gerasdorf bei Wien': 'Niederösterreich', 'Vösendorf': 'Niederösterreich', 
+                'Bruck/Leitha': 'Niederösterreich', 'Oeynhausen': 'Niederösterreich', 'Neunkirchen': 'Niederösterreich', 
+                'Wiener Neustadt': 'Niederösterreich', 'St. Poelten': 'Niederösterreich', 'Neufurth': 'Niederösterreich', 
+                'Tulln': 'Niederösterreich', 'Krems an der Donau': 'Niederösterreich', 'Linz': 'Oberösterreich', 
+                'Pasching': 'Oberösterreich', 'Rohrbach': 'Oberösterreich', 'Perg': 'Oberösterreich', 
+                'Steyr': 'Oberösterreich', 'Wels': 'Oberösterreich', 'Gmunden': 'Oberösterreich', 
+                'Bad Ischl': 'Oberösterreich', 'Seewalchen am Attersee': 'Oberösterreich', 'Ried im Innkreis': 'Oberösterreich', 
+                'Salzburg': 'Salzburg', 'Eugendorf': 'Salzburg', 'Bischofshofen': 'Salzburg', 
+                'Innsbruck': 'Tirol', 'Schwaz': 'Tirol', 'Völs': 'Tirol', 'Wörgl': 'Tirol', 
+                'Imst': 'Tirol', 'Reutte': 'Tirol', 'Götzis': 'Vorarlberg', 'Hohenems': 'Vorarlberg', 
+                'Eisenstadt': 'Burgenland', 'Parndorf': 'Burgenland', 'Oberwart': 'Burgenland', 
+                'Graz': 'Steiermark', 'Seiersberg-Pirka': 'Steiermark', 'Hartberg': 'Steiermark', 
+                'Feldbach': 'Steiermark', 'Leibnitz': 'Steiermark', 'Deutschlandsberg': 'Steiermark', 
+                'Bärnbach': 'Steiermark', 'Kapfenberg': 'Steiermark', 'Leoben': 'Steiermark', 
+                'Fohnsdorf': 'Steiermark', 'Liezen': 'Steiermark', 'Klagenfurt': 'Kärnten', 
+                'Völkermarkt': 'Kärnten', 'St. Veit an der Glan': 'Kärnten', 'Wolfsberg': 'Kärnten', 
+                'Villach': 'Kärnten', 'Feldkirchen in Kärnten': 'Kärnten', 'Spittal an der Drau': 'Kärnten',
+            };
+
+            finalData.forEach(store => {
+                if (!store.state) {
+                    store.state = cityStateMap[store.city] || 'N/A';
+                }
+                // Bereinigung für den Namen (Filiale-Nummern entfernen, wenn sie nicht der Name sind)
+                if (store.name.startsWith('Müller Filiale')) {
+                    store.name = 'Müller ' + store.name.split(',')[0].replace('Filiale', '').trim();
+                }
+                store.name = store.name.replace(/MHA Reinhard Müller HandelsgmbH/, 'Müller');
+                store.name = store.name.replace(/Müller GmbH & Co. KG/, 'Müller');
+                store.name = store.name.replace(/Müller Ltd. & Co. KG/, 'Müller');
+                store.name = store.name.replace(/Müller Douglas/, 'Douglas'); // Korrektur, falls Douglas in Müller-Daten enthalten ist
+                store.name = store.name.replace(/Wien Mitte, Landstraßer Hauptstraße 1B/, 'Wien Mitte');
+                
+            });
+
+            // Spezielle Hinzufügung der Douglas-Filialen, da sie in File 2 eine eigene Zeile haben
+            // Die Douglas-Filialen wurden in Schritt 1 bereits hinzugefügt, in Schritt 2 aktualisiert.
+
+            return finalData;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            storeData = processData();
+            currentTableData = storeData; // Initialisiere mit allen Daten
+            renderTable(currentTableData);
+
+            document.getElementById('searchInput').addEventListener('input', filterTable);
+            document.querySelectorAll('.table-header-cell').forEach(header => {
+                header.addEventListener('click', () => {
+                    const newSortColumn = header.getAttribute('data-sort-key');
+                    if (sortColumn === newSortColumn) {
+                        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        sortColumn = newSortColumn;
+                        sortDirection = 'asc';
+                    }
+                    sortAndRender(currentTableData);
+                });
+            });
+
+            document.getElementById('loading').classList.add('hidden');
+        });
+
+        /**
+         * Sortiert und rendert die Tabelle.
+         * @param {Array<Object>} data - Die zu sortierenden Daten.
+         */
+        function sortAndRender(data) {
+            data.sort((a, b) => {
+                const aVal = String(a[sortColumn]).toLowerCase();
+                const bVal = String(b[sortColumn]).toLowerCase();
+
+                if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+                if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+            currentTableData = data; // Aktualisiere die aktuell angezeigten Daten
+            renderTable(data);
+        }
+
+        /**
+         * Filtert die Tabelle basierend auf der Sucheingabe.
+         */
+        function filterTable() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const filteredData = storeData.filter(store => {
+                return Object.values(store).some(value => 
+                    String(value).toLowerCase().includes(searchTerm)
+                );
+            });
+            // Sortiere die gefilterten Daten und rendere sie
+            sortAndRender(filteredData);
+            document.getElementById('noResults').classList.toggle('hidden', filteredData.length > 0);
+        }
+
+        /**
+         * Rendert die Daten in die HTML-Tabelle.
+         * @param {Array<Object>} data - Die anzuzeigenden Daten.
+         */
+        function renderTable(data) {
+            const tableBody = document.getElementById('storeTableBody');
+            tableBody.innerHTML = ''; // Vorherige Daten löschen
+
+            // Setze Sortier-Icons zurück
+            document.querySelectorAll('.table-header-cell .sort-icon').forEach(icon => icon.textContent = '');
+            // Setze das aktuelle Sortier-Icon
+            const currentHeader = document.querySelector(`[data-sort-key="${sortColumn}"] .sort-icon`);
+            if (currentHeader) {
+                currentHeader.textContent = sortDirection === 'asc' ? ' ▲' : ' ▼';
+            }
+
+
+            data.forEach((store, index) => {
+                const row = document.createElement('tr');
+                row.className = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+                
+                const typeClass = store.type === 'Douglas' ? 'text-pink-600 font-semibold' : 'text-blue-600 font-medium';
+                
+                row.innerHTML = `
+                    <td class="px-4 py-3 whitespace-nowrap text-sm ${typeClass}">${store.type}</td>
+                    <td class="px-4 py-3 text-sm text-gray-900">${store.name}</td>
+                    <td class="px-4 py-3 text-sm text-gray-500">${store.street}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${store.plz}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${store.city}</td>
+                    <td class="px-4 py-3 text-sm text-gray-700">${store.state || 'Unbekannt'}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm font-mono text-green-600">${store.phone || '-'}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+
+            document.getElementById('noResults').classList.toggle('hidden', data.length > 0);
+        }
+
+        /**
+         * Erstellt und lädt die aktuellen Tabellendaten als CSV-Datei herunter.
+         */
+        function downloadCSV() {
+            if (currentTableData.length === 0) {
+                alert("Keine Daten zum Herunterladen vorhanden.");
+                return;
+            }
+
+            const headers = ['Typ', 'Filialname', 'Straße', 'PLZ', 'Stadt', 'Bundesland', 'Telefon'];
+            let csv = headers.join(';') + '\n';
+
+            currentTableData.forEach(store => {
+                const row = [
+                    store.type,
+                    store.name.replace(/"/g, '""'), // Escape double quotes
+                    store.street.replace(/"/g, '""'),
+                    store.plz,
+                    store.city,
+                    store.state,
+                    store.phone
+                ];
+                // CSV-Formatierung (Zellen mit Semikolon trennen und Anführungszeichen setzen, falls Kommas enthalten wären)
+                csv += row.map(cell => `"${cell}"`).join(';') + '\n';
+            });
+
+            // Fügt das BOM (Byte Order Mark) hinzu, um die korrekte Anzeige von Umlauten in Excel zu gewährleisten
+            const BOM = '\uFEFF';
+            const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'Filialen_Oesterreich_CSV.csv';
+            link.click();
+            URL.revokeObjectURL(link.href);
+        }
+
+        /**
+         * Erstellt und lädt die aktuellen Tabellendaten als Excel-kompatible XLSX-Datei herunter.
+         * Hinweis: Dies ist ein einfacher HTML-Hack, der die Daten als Tabelle in eine .xls-Datei speichert.
+         */
+        function downloadXLSX() {
+            if (currentTableData.length === 0) {
+                alert("Keine Daten zum Herunterladen vorhanden.");
+                return;
+            }
+
+            const headers = ['Typ', 'Filialname', 'Straße', 'PLZ', 'Stadt', 'Bundesland', 'Telefon'];
+            
+            let content = '<html><head><meta charset="UTF-8"><style>td{mso-number-format:"\@";}</style></head><body><table>';
+            
+            // Header-Zeile
+            content += '<tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>';
+            
+            // Daten-Zeilen
+            currentTableData.forEach(store => {
+                const row = [
+                    store.type,
+                    store.name,
+                    store.street,
+                    store.plz,
+                    store.city,
+                    store.state,
+                    store.phone
+                ];
+                content += '<tr>' + row.map(cell => `<td>${cell}</td>`).join('') + '</tr>';
+            });
+            
+            content += '</table></body></html>';
+
+            const blob = new Blob([content], { type: 'application/vnd.ms-excel' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'Filialen_Oesterreich_Excel.xls';
+            link.click();
+            URL.revokeObjectURL(link.href);
+        }
+
+    </script>
+
+</body>
+</html>
